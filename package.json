@@ -1,6 +1,6 @@
 {
-  "name": "clausecraft",
-  "version": "0.1.0",
+  "name": "resume-craft-pro",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,19 +9,33 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@codemirror/language": "^6.10.0",
+    "@codemirror/state": "^6.4.0",
+    "@codemirror/view": "^6.24.0",
     "@google/genai": "^1.28.0",
     "@google/generative-ai": "^0.21.0",
+    "@uiw/react-codemirror": "^4.21.21",
+    "codemirror": "^6.0.1",
     "docx": "^8.5.0",
+    "docx-preview": "^0.3.0",
+    "gpt-tokenizer": "^2.1.2",
     "jspdf": "^2.5.2",
+    "katex": "^0.16.9",
     "lucide-react": "^0.454.0",
     "mammoth": "^1.8.0",
     "marked": "^14.1.2",
     "next": "^14.2.18",
+    "p-limit": "^5.0.0",
+    "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^3.11.174",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-katex": "^3.0.1",
+    "react-pdf": "^7.5.1"
   },
   "devDependencies": {
+    "@types/katex": "^0.16.7",
     "@types/node": "^20.17.6",
     "@types/pdf-parse": "^1.1.4",
     "@types/react": "^18.3.12",
