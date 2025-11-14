@@ -20,11 +20,11 @@ export const dynamic = 'force-dynamic';
 
 // File size limits (in bytes)
 const FILE_SIZE_LIMITS: FileSizeConfig = {
-  maxResumeSize: 5 * 1024 * 1024,      // 5MB
-  maxProjectsSize: 5 * 1024 * 1024,    // 5MB
-  maxPortfolioSize: 5 * 1024 * 1024,   // 5MB
+  maxResumeSize: 2 * 1024 * 1024,      // 2MB
+  maxProjectsSize: 2 * 1024 * 1024,    // 2MB
+  maxPortfolioSize: 2 * 1024 * 1024,   // 2MB
   maxJDSize: 1 * 1024 * 1024,          // 1MB
-  totalMaxSize: 20 * 1024 * 1024       // 20MB
+  totalMaxSize: 8 * 1024 * 1024        // 8MB
 };
 
 /**

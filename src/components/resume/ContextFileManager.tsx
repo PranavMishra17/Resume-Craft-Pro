@@ -37,11 +37,11 @@ interface ContextFileManagerProps {
 }
 
 const FILE_SIZE_LIMITS = {
-  resume: 5 * 1024 * 1024,      // 5MB
-  projects: 5 * 1024 * 1024,    // 5MB
-  portfolio: 5 * 1024 * 1024,   // 5MB
+  resume: 2 * 1024 * 1024,      // 2MB
+  projects: 2 * 1024 * 1024,    // 2MB
+  portfolio: 2 * 1024 * 1024,   // 2MB
   jobDescription: 1 * 1024 * 1024, // 1MB
-  total: 20 * 1024 * 1024       // 20MB
+  total: 8 * 1024 * 1024        // 8MB
 };
 
 export default function ContextFileManager({
