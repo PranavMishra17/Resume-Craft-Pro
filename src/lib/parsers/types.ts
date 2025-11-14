@@ -139,7 +139,7 @@ export interface OriginalDocument {
   documentId: string;
   fileBuffer: ArrayBuffer;
   fileName: string;
-  format: 'docx' | 'pdf' | 'markdown';
+  format: 'docx' | 'pdf' | 'markdown' | 'latex';
   uploadedAt: Date;
 }
 

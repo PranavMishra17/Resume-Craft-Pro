@@ -245,6 +245,11 @@ export class TokenTracker {
    * Save to localStorage
    */
   private saveToStorage(): void {
+    // Skip if running on server (API routes)
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     try {
       // Convert Map to object for JSON serialization
       const sessionsObj = Object.fromEntries(
@@ -281,6 +286,11 @@ export class TokenTracker {
    * Load from localStorage
    */
   private loadFromStorage(): void {
+    // Skip if running on server (API routes)
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     try {
       const sessionsStr = localStorage.getItem('resume-craft-pro-token-sessions');
       const recordsStr = localStorage.getItem('resume-craft-pro-token-records');
