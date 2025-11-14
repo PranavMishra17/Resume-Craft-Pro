@@ -26,7 +26,7 @@ export interface Line {
 export interface DocumentMetadata {
   totalLines: number;
   totalPages: number;
-  format: 'docx' | 'pdf' | 'markdown';
+  format: 'docx' | 'pdf' | 'markdown' | 'latex';
   fileName?: string;
   fileSize?: number;
   uploadedAt?: Date;
@@ -70,7 +70,7 @@ export interface Chat {
   updatedAt?: Date;
 }
 
-export type DocumentFormat = 'docx' | 'pdf' | 'markdown';
+export type DocumentFormat = 'docx' | 'pdf' | 'markdown' | 'latex';
 
 export interface ParseResult {
   document: Document;

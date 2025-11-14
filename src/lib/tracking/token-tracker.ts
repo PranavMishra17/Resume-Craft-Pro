@@ -304,9 +304,9 @@ export class TokenTracker {
       if (recordsStr) {
         const recordsObj = JSON.parse(recordsStr);
         this.callRecords = new Map(
-          Object.entries(recordsObj).map(([key, value]: [string, any[]]) => [
+          Object.entries(recordsObj).map(([key, value]) => [
             key,
-            value.map(record => ({
+            (value as any[]).map(record => ({
               ...record,
               timestamp: new Date(record.timestamp)
             }))

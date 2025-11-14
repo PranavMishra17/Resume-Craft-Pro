@@ -44,7 +44,7 @@ export default function InitialSetupModal({
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
             <h2 className="text-xl font-bold text-gray-900">
-              Welcome to ClauseCraft
+              Welcome to Resume-Craft-Pro
             </h2>
             <p className="text-sm text-gray-700 mt-1">
               Quick setup guide for your document
@@ -90,7 +90,7 @@ export default function InitialSetupModal({
           {step === 1 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">
-                How ClauseCraft Works
+                How Resume-Craft-Pro Works
               </h3>
 
               <div className="space-y-3">

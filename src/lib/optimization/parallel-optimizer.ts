@@ -148,7 +148,7 @@ OPTIMIZED BULLET:`;
         contents: prompt
       });
 
-      let optimizedText = response.text.trim();
+      let optimizedText = response.text?.trim() || '';
       const estimatedCompletionTokens = tracker.estimateTokens(optimizedText);
       const durationMs = Date.now() - startTime;
 

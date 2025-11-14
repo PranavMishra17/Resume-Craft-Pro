@@ -62,7 +62,7 @@ Keywords:`;
         contents: prompt
       });
 
-      const text = response.text.trim();
+      const text = response.text?.trim() || '';
       const estimatedCompletionTokens = tracker.estimateTokens(text);
       const durationMs = Date.now() - startTime;
 
@@ -144,7 +144,7 @@ Keywords:`;
         contents: prompt
       });
 
-      const text = response.text.trim();
+      const text = response.text?.trim() || '';
       const estimatedCompletionTokens = tracker.estimateTokens(text);
       const durationMs = Date.now() - startTime;
 
@@ -308,7 +308,7 @@ JSON:`;
         contents: prompt
       });
 
-      const text = response.text.trim();
+      const text = response.text?.trim() || '';
       const estimatedCompletionTokens = tracker.estimateTokens(text);
       const durationMs = Date.now() - startTime;
 
@@ -432,7 +432,7 @@ If none found, return "None".`;
         contents: prompt
       });
 
-      const text = response.text.trim();
+      const text = response.text?.trim() || '';
       const estimatedCompletionTokens = tracker.estimateTokens(text);
       const durationMs = Date.now() - startTime;
 
