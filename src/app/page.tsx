@@ -2,12 +2,12 @@
 
 /**
  * Resume-Craft-Pro - Complete Application
- * Document editing + Resume optimization
+ * AI-Powered Resume Optimization with LaTeX/DOCX Support
  */
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Document, Line, Message, Chat, EditHistory, OriginalDocument } from '@/lib/parsers/types';
+import { Document, Line, Message, Chat, EditHistory, OriginalDocument, KeywordAnalysis, OptimizationConfig, ContextFile, TokenUsage } from '@/lib/parsers/types';
 import {
   loadChats,
   saveChats,
@@ -27,6 +27,10 @@ import InitialSetupModal from '@/components/modals/InitialSetupModal';
 import FormatPreservePreview from '@/components/document/FormatPreservePreview';
 import SettingsModal from '@/components/modals/SettingsModal';
 import StatusBar from '@/components/layout/StatusBar';
+import ContextFileManager from '@/components/resume/ContextFileManager';
+import KeywordAnalysisPanel from '@/components/resume/KeywordAnalysisPanel';
+import OptimizationControls from '@/components/resume/OptimizationControls';
+import TokenCounter from '@/components/resume/TokenCounter';
 import { Upload, AlertCircle, Settings, FileText, Briefcase, FolderOpen, FileCode, ChevronDown, ChevronUp, Plus, X, Sparkles } from 'lucide-react';
 
 export default function Home() {
@@ -50,11 +54,48 @@ export default function Home() {
   // Settings modal state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [customApiKey, setCustomApiKey] = useState<string | null>(null);
-  const [chatWidth, setChatWidth] = useState(500); // Default 500px
+  const [chatWidth, setChatWidth] = useState(500);
   const [isResizingChat, setIsResizingChat] = useState(false);
+
+  // Resume optimization state
+  const [contextFiles, setContextFiles] = useState<{
+    resume?: ContextFile;
+    projects?: ContextFile;
+    portfolio?: ContextFile;
+    jobDescription?: ContextFile;
+  }>({});
+  const [jobDescription, setJobDescription] = useState('');
+  const [keywordAnalysis, setKeywordAnalysis] = useState<KeywordAnalysis | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [customInstructions, setCustomInstructions] = useState('');
+  const [optimizationConfig, setOptimizationConfig] = useState<OptimizationConfig>({
+    mode: 'targeted',
+    maxConcurrentCalls: 5,
+    preserveLength: true,
+    maintainTone: true,
+    maxKeywordsPerBullet: 3,
+    minConfidenceScore: 0.7
+  });
+  const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null);
+  const [sessionId] = useState(`session-${Date.now()}`);
+
+  // UI state
+  const [showContextFiles, setShowContextFiles] = useState(true);
+  const [showOptimizationPanel, setShowOptimizationPanel] = useState(true);
+  const [showChatPanel, setShowChatPanel] = useState(true);
+
+  // Resume paste modal
+  const [showResumePasteModal, setShowResumePasteModal] = useState(false);
+  const [resumePasteText, setResumePasteText] = useState('');
+
+  // JD paste
+  const [jdPasteText, setJdPasteText] = useState('');
 
   // Load chats and custom API key from localStorage on mount
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const storedChats = loadChats();
     setChats(storedChats);
 
@@ -85,7 +126,9 @@ export default function Home() {
     const handleMouseUp = () => {
       setIsResizingChat(false);
       // Save width to localStorage
-      localStorage.setItem('resume-craft-pro-chat-width', chatWidth.toString());
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('resume-craft-pro-chat-width', chatWidth.toString());
+      }
     };
 
     window.document.addEventListener('mousemove', handleMouseMove);
@@ -107,7 +150,7 @@ export default function Home() {
 
       // Store original file for format-preserving export
       const fileBuffer = await file.arrayBuffer();
-      const format = file.name.endsWith('.docx') ? 'docx' : file.name.endsWith('.pdf') ? 'pdf' : 'markdown';
+      const format = file.name.endsWith('.docx') ? 'docx' : file.name.endsWith('.pdf') ? 'pdf' : file.name.endsWith('.tex') ? 'latex' : 'markdown';
 
       const formData = new FormData();
       formData.append('file', file);
@@ -148,8 +191,7 @@ export default function Home() {
       saveEditHistory(history);
       setEditHistory(history);
 
-      // If current chat exists and has no messages, reuse it (rename it to filename)
-      // Otherwise create a new chat
+      // If current chat exists and has no messages, reuse it
       if (currentChat && currentChat.messages.length === 0) {
         const renamedChat = {
           ...currentChat,
@@ -176,6 +218,29 @@ export default function Home() {
     } catch (error) {
       console.error('Error uploading file:', error);
       setError(error instanceof Error ? error.message : 'Failed to upload file');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Handle resume paste
+  const handleResumePaste = async () => {
+    if (!resumePasteText.trim()) return;
+
+    try {
+      setIsUploading(true);
+      setError(null);
+      setShowResumePasteModal(false);
+
+      // Create a text file from pasted content
+      const blob = new Blob([resumePasteText], { type: 'text/plain' });
+      const file = new File([blob], 'pasted-resume.txt', { type: 'text/plain' });
+
+      await handleFileUpload(file);
+      setResumePasteText('');
+    } catch (error) {
+      console.error('Error processing pasted resume:', error);
+      setError(error instanceof Error ? error.message : 'Failed to process pasted resume');
     } finally {
       setIsUploading(false);
     }
@@ -216,7 +281,7 @@ export default function Home() {
       setChats(updatedChats);
       saveChats(updatedChats);
 
-      // Send to API with optional custom prompt and API key
+      // Send to API
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -261,12 +326,12 @@ export default function Home() {
       setChats(finalChats);
       saveChats(finalChats);
 
-      // Update document if it was modified
+      // Update document if modified
       if (data.document) {
         setDocument(data.document);
         saveDocument(data.document);
 
-        // Track edits for format-preserving export
+        // Track edits
         if (data.actions && editHistory) {
           const newEdits = data.actions
             .filter((action: any) => action.type === 'edit' && action.success && action.details?.modifiedLines)
@@ -293,7 +358,6 @@ export default function Home() {
             };
             setEditHistory(updatedHistory);
             saveEditHistory(updatedHistory);
-            console.info(`[EDIT_TRACKING] Tracked ${newEdits.length} new edits`);
           }
         }
       }
@@ -327,13 +391,11 @@ export default function Home() {
 
   // Handle new chat
   const handleNewChat = () => {
-    // Create a new empty chat without document
-    // User will see upload prompt in document viewer
     const newChat = createChat('New Chat', undefined);
     const updatedChats = [newChat, ...chats];
     setChats(updatedChats);
     setCurrentChat(newChat);
-    setDocument(null); // Clear document to show upload prompt
+    setDocument(null);
     saveChats(updatedChats);
   };
 
@@ -343,7 +405,7 @@ export default function Home() {
     if (chat) {
       setCurrentChat(chat);
 
-      // Load associated document if different
+      // Load associated document
       if (chat.documentId && chat.documentId !== document?.id) {
         const doc = loadDocument(chat.documentId);
         if (doc) {
@@ -359,13 +421,12 @@ export default function Home() {
     setChats(updatedChats);
     saveChats(updatedChats);
 
-    // If current chat was deleted, clear it
     if (currentChat?.id === chatId) {
       setCurrentChat(null);
     }
   };
 
-  // Handle export (regular - uses current preview state)
+  // Handle export (PDF only - LaTeX export removed as requested)
   const handleExport = async (format: 'docx' | 'pdf' | 'markdown') => {
     if (!document) {
       setError('No document to export');
@@ -381,7 +442,7 @@ export default function Home() {
     }
   };
 
-  // Handle format-preserving export (shows preview modal)
+  // Handle format-preserving export
   const handleFormatPreservingExport = async (format: 'docx' | 'pdf' | 'markdown') => {
     if (!document) {
       setError('No document to export');
@@ -391,16 +452,12 @@ export default function Home() {
     try {
       setError(null);
 
-      // Load original file and edit history if not already loaded
       const original = originalFile || await loadOriginalFile(document.id);
       const history = editHistory || loadEditHistory(document.id);
 
       if (original && history && history.edits.length > 0) {
-        // Show preview modal
         setShowPreviewModal(true);
       } else {
-        // Fallback to regular export if no edits or original file
-        console.info('[EXPORT] No edits or original file, using regular export');
         await exportDocument(document, format);
       }
     } catch (error) {
@@ -409,7 +466,7 @@ export default function Home() {
     }
   };
 
-  // Handle actual download from preview modal
+  // Handle download from preview
   const handleDownloadFromPreview = async () => {
     if (!document || !originalFile || !editHistory) {
       setError('Missing document data');
@@ -418,7 +475,6 @@ export default function Home() {
 
     try {
       setError(null);
-      console.info('[EXPORT] Using format-preserving export');
       await exportDocumentPreserveFormat(document, originalFile, editHistory);
     } catch (error) {
       console.error('Error exporting document:', error);
@@ -426,13 +482,12 @@ export default function Home() {
     }
   };
 
-  // Handle auto-lock non-placeholder lines
+  // Handle auto-lock
   const handleAutoLock = () => {
     if (!document) return;
 
     const updatedLines = document.lines.map(line => ({
       ...line,
-      // Lock all lines that are NOT placeholders
       isLocked: !line.isPlaceholder
     }));
 
@@ -443,11 +498,9 @@ export default function Home() {
 
     setDocument(updatedDocument);
     saveDocument(updatedDocument);
-
-    console.log('[AUTO_LOCK] Locked all non-placeholder lines');
   };
 
-  // Handle LLM-powered placeholder detection
+  // Handle LLM detection
   const handleRunLLMDetection = async () => {
     if (!document) return;
 
@@ -455,9 +508,6 @@ export default function Home() {
       setIsRunningLLMDetection(true);
       setError(null);
 
-      console.log('[LLM_DETECTION] Starting LLM-powered detection');
-
-      // Prepare lines for API
       const linesData = document.lines.map(line => ({
         lineNumber: line.lineNumber,
         text: line.text
@@ -478,9 +528,6 @@ export default function Home() {
         throw new Error(data.error || 'Failed to detect placeholders');
       }
 
-      console.log(`[LLM_DETECTION] Detected ${data.placeholderCount} placeholder lines`);
-
-      // Update document with LLM results
       const updatedLines = document.lines.map(line => {
         const llmResult = data.results[line.lineNumber];
         if (llmResult) {
@@ -501,10 +548,8 @@ export default function Home() {
       setDocument(updatedDocument);
       saveDocument(updatedDocument);
 
-      console.log('[LLM_DETECTION] Document updated with LLM results');
-
     } catch (error) {
-      console.error('[LLM_DETECTION] Error:', error);
+      console.error('Error:', error);
       setError(error instanceof Error ? error.message : 'Failed to run LLM detection');
     } finally {
       setIsRunningLLMDetection(false);
@@ -514,15 +559,106 @@ export default function Home() {
   // Handle API key change
   const handleApiKeyChange = (apiKey: string) => {
     setCustomApiKey(apiKey);
-    localStorage.setItem('clausecraft-custom-api-key', apiKey);
-    console.log('[API_KEY] Custom API key saved');
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('resume-craft-pro-custom-api-key', apiKey);
+    }
   };
 
   // Handle API key clear
   const handleClearApiKey = () => {
     setCustomApiKey(null);
-    localStorage.removeItem('clausecraft-custom-api-key');
-    console.log('[API_KEY] Cleared custom API key, using default');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('resume-craft-pro-custom-api-key');
+    }
+  };
+
+  // Handle keyword analysis
+  const handleAnalyzeKeywords = async () => {
+    if (!contextFiles.resume || !jobDescription.trim()) {
+      setError('Please upload resume and provide job description');
+      return;
+    }
+
+    try {
+      setIsAnalyzing(true);
+      setError(null);
+
+      const response = await fetch('/api/analyze-keywords', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resume: contextFiles.resume.content,
+          jobDescription: jobDescription.trim(),
+          customApiKey: customApiKey || undefined
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Failed to analyze keywords');
+      }
+
+      setKeywordAnalysis(data.analysis);
+      setTokenUsage(data.tokenUsage || null);
+
+    } catch (error) {
+      console.error('Error analyzing keywords:', error);
+      setError(error instanceof Error ? error.message : 'Failed to analyze keywords');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Handle resume optimization
+  const handleOptimizeResume = async () => {
+    if (!contextFiles.resume || !jobDescription.trim()) {
+      setError('Please upload resume and provide job description');
+      return;
+    }
+
+    try {
+      setIsOptimizing(true);
+      setError(null);
+
+      const response = await fetch('/api/optimize-resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resume: contextFiles.resume.content,
+          jobDescription: jobDescription.trim(),
+          config: optimizationConfig,
+          customInstructions: customInstructions || undefined,
+          customApiKey: customApiKey || undefined
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Failed to optimize resume');
+      }
+
+      // Update context files with optimized resume
+      setContextFiles({
+        ...contextFiles,
+        resume: {
+          ...contextFiles.resume!,
+          content: data.optimizedResume
+        }
+      });
+
+      setTokenUsage(data.tokenUsage || null);
+
+      // Show success message
+      alert('Resume optimized successfully! Review the changes in the document viewer.');
+
+    } catch (error) {
+      console.error('Error optimizing resume:', error);
+      setError(error instanceof Error ? error.message : 'Failed to optimize resume');
+    } finally {
+      setIsOptimizing(false);
+    }
   };
 
   return (
@@ -534,26 +670,26 @@ export default function Home() {
           <div className="flex items-center gap-3 flex-1">
             <Image
               src="/images/title.png"
-              alt="ClauseCraft Logo"
+              alt="Resume-Craft-Pro Logo"
               width={48}
               height={48}
               className="rounded-lg"
             />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">ClauseCraft</h1>
-              <p className="text-sm text-gray-600">Agentic Document Editor</p>
+              <h1 className="text-2xl font-bold text-gray-900">Resume-Craft-Pro</h1>
+              <p className="text-sm text-gray-700">AI-Powered Resume Optimization</p>
             </div>
             <button
               onClick={() => setShowSettingsModal(true)}
               className="ml-2 p-2 hover:bg-gray-100 rounded-full transition-colors"
               title="Settings"
             >
-              <Settings className="w-5 h-5 text-gray-600" />
+              <Settings className="w-5 h-5 text-gray-700" />
             </button>
           </div>
 
           {/* Center - Upload Button */}
-          <div className="flex-1 flex justify-center">
+          <div className="flex-1 flex justify-center gap-3">
             <label className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer">
               <Upload className="w-5 h-5" />
               <span className="font-medium">
@@ -561,7 +697,7 @@ export default function Home() {
               </span>
               <input
                 type="file"
-                accept=".docx,.pdf,.md,.txt"
+                accept=".docx,.pdf,.md,.txt,.tex"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) handleFileUpload(file);
@@ -570,9 +706,16 @@ export default function Home() {
                 disabled={isUploading}
               />
             </label>
+            <button
+              onClick={() => setShowResumePasteModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <FileText className="w-5 h-5" />
+              <span className="font-medium">Paste Resume</span>
+            </button>
           </div>
 
-          {/* Right - Personal Image with Hover Effect */}
+          {/* Right - Portfolio Button with Hover Effect */}
           <div className="flex-1 flex justify-end">
             <div className="group relative">
               <a
@@ -592,10 +735,10 @@ export default function Home() {
                   />
                 </div>
 
-                {/* Sliding Text with Wave Background */}
+                {/* Sliding Text with Gradient Background */}
                 <div className="absolute top-0 right-full h-14 flex items-center pointer-events-none pr-3">
                   <div
-                    className="h-10 bg-gradient-to-r from-red-500 via-blue-600 to-black opacity-0 group-hover:opacity-100 transition-all duration-500 ease-out rounded-full px-5 flex items-center whitespace-nowrap -translate-x-8 group-hover:translate-x-0 group-hover:animate-wave shadow-lg"
+                    className="h-10 bg-gradient-to-r from-red-500 via-blue-600 to-black opacity-0 group-hover:opacity-100 transition-all duration-500 ease-out rounded-full px-5 flex items-center whitespace-nowrap -translate-x-8 group-hover:translate-x-0 shadow-lg"
                     style={{
                       backgroundSize: '200% 100%'
                     }}
@@ -629,16 +772,58 @@ export default function Home() {
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden pb-10">
-        {/* Left Sidebar - Chat History (Collapsible) */}
-        <ChatHistory
-          chats={chats}
-          currentChatId={currentChat?.id}
-          onSelectChat={handleSelectChat}
-          onNewChat={handleNewChat}
-          onDeleteChat={handleDeleteChat}
-        />
+        {/* Left Sidebar - Chat History + Context Files */}
+        <div className="flex flex-col w-72 border-r border-gray-200 bg-gray-50">
+          {/* Chat History */}
+          <div className="flex-shrink-0 h-1/2 border-b border-gray-200">
+            <ChatHistory
+              chats={chats}
+              currentChatId={currentChat?.id}
+              onSelectChat={handleSelectChat}
+              onNewChat={handleNewChat}
+              onDeleteChat={handleDeleteChat}
+            />
+          </div>
 
-        {/* Middle - Document Viewer */}
+          {/* Context Files Manager */}
+          <div className="flex-1 overflow-y-auto">
+            {showContextFiles ? (
+              <div className="h-full flex flex-col">
+                <div className="flex-shrink-0 p-4 bg-white border-b border-gray-200 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <FolderOpen className="w-5 h-5 text-blue-600" />
+                    Context Files
+                  </h3>
+                  <button
+                    onClick={() => setShowContextFiles(false)}
+                    className="p-1 hover:bg-gray-100 rounded transition-colors"
+                    title="Collapse"
+                  >
+                    <ChevronUp className="w-4 h-4 text-gray-700" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  <ContextFileManager
+                    files={contextFiles}
+                    onFilesChange={setContextFiles}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <button
+                  onClick={() => setShowContextFiles(true)}
+                  className="flex flex-col items-center gap-2 p-4 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Plus className="w-6 h-6 text-blue-600" />
+                  <span className="text-sm font-medium text-gray-900">Show Context Files</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Center - Document Viewer */}
         <div className="flex-1">
           <DocumentViewer
             document={document}
@@ -655,7 +840,7 @@ export default function Home() {
           />
         </div>
 
-        {/* Right - Chat Interface */}
+        {/* Right Sidebar - JD + Keywords + Optimization + Chat */}
         <div className="flex-shrink-0 relative" style={{ width: `${chatWidth}px` }}>
           {/* Resize Handle */}
           <div
@@ -663,13 +848,141 @@ export default function Home() {
             className={`absolute top-0 left-0 w-1 h-full cursor-col-resize hover:bg-blue-500 transition-colors z-20 ${
               isResizingChat ? 'bg-blue-500' : ''
             }`}
-            title="Drag to resize chat"
+            title="Drag to resize"
           />
-          <ChatInterface
-            messages={currentChat?.messages || []}
-            onSendMessage={handleSendMessage}
-            isLoading={isLoading}
-          />
+
+          <div className="h-full flex flex-col overflow-y-auto bg-white">
+            {/* Job Description Input */}
+            <div className="flex-shrink-0 p-4 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-orange-600" />
+                  Job Description
+                </h3>
+              </div>
+              <textarea
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+                placeholder="Paste the job description here...
+
+Include:
+- Required skills and technologies
+- Qualifications
+- Responsibilities"
+                className="w-full h-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm text-gray-900"
+              />
+              <p className="text-xs text-gray-700 mt-1">
+                {jobDescription.length > 0 ? `${jobDescription.length} characters` : 'Required for optimization'}
+              </p>
+              {jobDescription.length > 0 && (
+                <button
+                  onClick={handleAnalyzeKeywords}
+                  disabled={isAnalyzing || !contextFiles.resume}
+                  className="mt-2 w-full px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isAnalyzing ? 'Analyzing...' : 'Analyze Keywords'}
+                </button>
+              )}
+            </div>
+
+            {/* Keyword Analysis */}
+            {showOptimizationPanel && (
+              <div className="flex-shrink-0 p-4 border-b border-gray-200">
+                <KeywordAnalysisPanel
+                  analysis={keywordAnalysis}
+                  isAnalyzing={isAnalyzing}
+                  onAnalyze={handleAnalyzeKeywords}
+                  onOptimize={handleOptimizeResume}
+                  isOptimizing={isOptimizing}
+                />
+              </div>
+            )}
+
+            {/* Optimization Controls */}
+            {showOptimizationPanel && (
+              <div className="flex-shrink-0 p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900">Optimization</h3>
+                  <button
+                    onClick={() => setShowOptimizationPanel(false)}
+                    className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                    Collapse
+                  </button>
+                </div>
+                <OptimizationControls
+                  jobDescription={jobDescription}
+                  onJobDescriptionChange={setJobDescription}
+                  customInstructions={customInstructions}
+                  onCustomInstructionsChange={setCustomInstructions}
+                  config={optimizationConfig}
+                  onConfigChange={setOptimizationConfig}
+                  onOptimize={handleOptimizeResume}
+                  isOptimizing={isOptimizing}
+                  canOptimize={!!contextFiles.resume && jobDescription.trim().length > 0}
+                />
+              </div>
+            )}
+
+            {!showOptimizationPanel && (
+              <div className="flex-shrink-0 p-4 border-b border-gray-200 flex justify-center">
+                <button
+                  onClick={() => setShowOptimizationPanel(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                  Show Optimization
+                </button>
+              </div>
+            )}
+
+            {/* Token Counter */}
+            {tokenUsage && (
+              <div className="flex-shrink-0 p-4 border-b border-gray-200">
+                <TokenCounter
+                  sessionId={sessionId}
+                  tokenUsage={tokenUsage}
+                  isCompact={true}
+                />
+              </div>
+            )}
+
+            {/* Chat Interface */}
+            {showChatPanel && (
+              <div className="flex-1 flex flex-col">
+                <div className="flex-shrink-0 p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Chat</h3>
+                  <button
+                    onClick={() => setShowChatPanel(false)}
+                    className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                    Hide
+                  </button>
+                </div>
+                <div className="flex-1">
+                  <ChatInterface
+                    messages={currentChat?.messages || []}
+                    onSendMessage={handleSendMessage}
+                    isLoading={isLoading}
+                  />
+                </div>
+              </div>
+            )}
+
+            {!showChatPanel && (
+              <div className="flex-shrink-0 p-4 flex justify-center">
+                <button
+                  onClick={() => setShowChatPanel(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                  Show Chat
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -713,6 +1026,52 @@ export default function Home() {
         onApiKeyChange={handleApiKeyChange}
         onClearApiKey={handleClearApiKey}
       />
+
+      {/* Resume Paste Modal */}
+      {showResumePasteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900">Paste Resume Text</h2>
+              <button
+                onClick={() => setShowResumePasteModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-700" />
+              </button>
+            </div>
+            <div className="p-6">
+              <textarea
+                value={resumePasteText}
+                onChange={(e) => setResumePasteText(e.target.value)}
+                placeholder="Paste your resume text here (LaTeX, plain text, or markdown)..."
+                className="w-full h-96 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm text-gray-900 font-mono"
+              />
+              <p className="text-xs text-gray-700 mt-2">
+                {resumePasteText.length} characters
+              </p>
+            </div>
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowResumePasteModal(false);
+                  setResumePasteText('');
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-900 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResumePaste}
+                disabled={!resumePasteText.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Process Resume
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
