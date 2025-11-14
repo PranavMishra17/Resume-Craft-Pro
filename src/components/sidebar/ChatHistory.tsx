@@ -30,7 +30,7 @@ export default function ChatHistory({
 
   // Load sidebar width from localStorage on mount
   useEffect(() => {
-    const savedWidth = localStorage.getItem('clausecraft-sidebar-width');
+    const savedWidth = localStorage.getItem('resume-craft-pro-sidebar-width');
     if (savedWidth) {
       setSidebarWidth(parseInt(savedWidth, 10));
     }
@@ -58,7 +58,7 @@ export default function ChatHistory({
     const handleMouseUp = () => {
       setIsResizing(false);
       // Save width to localStorage
-      localStorage.setItem('clausecraft-sidebar-width', sidebarWidth.toString());
+      localStorage.setItem('resume-craft-pro-sidebar-width', sidebarWidth.toString());
     };
 
     document.addEventListener('mousemove', handleMouseMove);

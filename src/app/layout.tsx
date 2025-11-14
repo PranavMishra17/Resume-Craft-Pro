@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'ClauseCraft - Agentic Document Editor',
-  description: 'AI-powered document editor with line-based editing and citations',
+  title: 'Resume-Craft-Pro - AI-Powered Resume Optimization',
+  description: 'Optimize your resume for any job with AI-powered keyword analysis and format-preserving LaTeX/DOCX editing',
   icons: {
     icon: '/images/title.png',
   },

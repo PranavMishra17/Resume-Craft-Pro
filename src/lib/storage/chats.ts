@@ -6,10 +6,10 @@
 import { Chat, Message, Document, OriginalDocument, EditHistory } from '../parsers/types';
 import { randomUUID } from 'crypto';
 
-const STORAGE_KEY = 'clausecraft-chats';
-const DOCUMENT_STORAGE_KEY = 'clausecraft-documents';
-const EDIT_HISTORY_KEY = 'clausecraft-edit-history';
-const INDEXEDDB_NAME = 'ClauseCraft';
+const STORAGE_KEY = 'resume-craft-pro-chats';
+const DOCUMENT_STORAGE_KEY = 'resume-craft-pro-documents';
+const EDIT_HISTORY_KEY = 'resume-craft-pro-edit-history';
+const INDEXEDDB_NAME = 'ResumeCraftPro';
 const ORIGINAL_FILES_STORE = 'original-files';
 
 /**
