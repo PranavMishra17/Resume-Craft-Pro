@@ -86,21 +86,6 @@ export default function OptimizationControls({
         </p>
       </div>
 
-      {/* Custom Instructions */}
-      {onCustomInstructionsChange && (
-        <div>
-          <label className="text-sm font-medium text-gray-700 block mb-2">
-            Custom Instructions (Optional)
-          </label>
-          <textarea
-            value={customInstructions || ''}
-            onChange={(e) => onCustomInstructionsChange(e.target.value)}
-            placeholder="Example:&#10;- Use action verbs like 'developed', 'implemented', 'led'&#10;- Emphasize quantifiable results (%, numbers, metrics)&#10;- Focus on technical depth and system architecture&#10;- Maintain professional tone"
-            className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
-          />
-        </div>
-      )}
-
       {/* Optimization Mode */}
       <div>
         <label className="text-sm font-medium text-gray-700 block mb-2">
@@ -157,6 +142,21 @@ export default function OptimizationControls({
 
         {showAdvanced && (
           <div className="mt-3 space-y-3 pl-6 border-l-2 border-gray-200">
+            {/* Custom Instructions */}
+            {onCustomInstructionsChange && (
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">
+                  Custom Instructions
+                </label>
+                <textarea
+                  value={customInstructions || ''}
+                  onChange={(e) => onCustomInstructionsChange(e.target.value)}
+                  placeholder="Example:&#10;- Use action verbs like 'developed', 'implemented'&#10;- Emphasize quantifiable results (%, numbers)&#10;- Focus on technical depth"
+                  className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-xs text-gray-900"
+                />
+              </div>
+            )}
+
             {/* Max Concurrent Calls */}
             <div>
               <label className="text-xs font-medium text-gray-700 block mb-1">

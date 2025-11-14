@@ -650,8 +650,12 @@ export default function Home() {
 
       setTokenUsage(data.tokenUsage || null);
 
+      // Auto-collapse optimization panel to show chat
+      setShowOptimizationPanel(false);
+      setShowChatPanel(true);
+
       // Show success message
-      alert('Resume optimized successfully! Review the changes in the document viewer.');
+      alert('Resume optimized successfully! Review the changes in the document viewer. Chat is now available for further edits.');
 
     } catch (error) {
       console.error('Error optimizing resume:', error);
