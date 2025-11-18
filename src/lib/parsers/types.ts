@@ -68,6 +68,18 @@ export interface Chat {
   documentId?: string;
   createdAt: Date;
   updatedAt?: Date;
+  contextFiles?: {
+    projects?: {
+      name: string;
+      content: string;
+      uploadedAt: Date;
+    };
+    portfolio?: {
+      name: string;
+      content: string;
+      uploadedAt: Date;
+    };
+  };
 }
 
 export type DocumentFormat = 'docx' | 'pdf' | 'markdown' | 'latex';

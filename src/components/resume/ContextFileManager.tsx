@@ -34,6 +34,7 @@ interface ContextFileManagerProps {
     jobDescription?: ContextFile;
   }) => void;
   onUploadComplete?: () => void;
+  showOnlyProjectsAndPortfolio?: boolean;
 }
 
 const FILE_SIZE_LIMITS = {
@@ -47,7 +48,8 @@ const FILE_SIZE_LIMITS = {
 export default function ContextFileManager({
   files,
   onFilesChange,
-  onUploadComplete
+  onUploadComplete,
+  showOnlyProjectsAndPortfolio = false
 }: ContextFileManagerProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -134,12 +136,12 @@ export default function ContextFileManager({
   };
 
   // File type configurations
-  const fileTypes = [
+  const allFileTypes = [
     {
       key: 'resume' as const,
       label: 'Resume',
       icon: FileText,
-      accept: '.tex,.docx,.pdf',
+      accept: '.tex,.docx,.md,.pdf',
       color: 'bg-blue-500',
       description: 'LaTeX, DOCX, or PDF'
     },
@@ -169,9 +171,16 @@ export default function ContextFileManager({
     }
   ];
 
+  // Filter file types based on prop
+  const fileTypes = showOnlyProjectsAndPortfolio
+    ? allFileTypes.filter(type => type.key === 'projects' || type.key === 'portfolio')
+    : allFileTypes;
+
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Context Files</h3>
+    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        {showOnlyProjectsAndPortfolio ? 'Additional Context' : 'Context Files'}
+      </h3>
 
       {/* Error display */}
       {uploadError && (
