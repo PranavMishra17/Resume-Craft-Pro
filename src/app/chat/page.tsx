@@ -36,6 +36,10 @@ import SimplifiedOptimizationControls from '@/components/resume/SimplifiedOptimi
 import ContextFilesModal from '@/components/modals/ContextFilesModal';
 import { Upload, AlertCircle, Settings, Plus } from 'lucide-react';
 
+// NEW: Resume editor imports
+import { Resume } from '@/types/resume';
+import ResumeEditorLayout from '@/components/editors/ResumeEditorLayout';
+
 export default function ChatPage() {
   const searchParams = useSearchParams();
 
@@ -46,8 +50,11 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
-  const [isRunningLLMDetection, setIsRunningLLMDetection] = useState(false);
   const [selectedLine, setSelectedLine] = useState<Line | null>(null);
+
+  // NEW: Resume editor state
+  const [parsedResume, setParsedResume] = useState<Resume | null>(null);
+  const [isParsingResume, setIsParsingResume] = useState(false);
 
   // Edit tracking state
   const [editHistory, setEditHistory] = useState<EditHistory | null>(null);
@@ -300,6 +307,36 @@ export default function ChatPage() {
       // Mark resume as uploaded
       setHasResumeUploaded(true);
       setShowResumeModal(false);
+
+      // NEW: If it's a LaTeX file, also parse it for the editor
+      if (file.name.endsWith('.tex')) {
+        console.log('[UPLOAD] Parsing LaTeX resume for editor...');
+        setIsParsingResume(true);
+
+        const parseFormData = new FormData();
+        parseFormData.append('file', file);
+
+        try {
+          const parseResponse = await fetch('/api/parse-resume', {
+            method: 'POST',
+            body: parseFormData,
+          });
+
+          if (parseResponse.ok) {
+            const parseData = await parseResponse.json();
+            if (parseData.success && parseData.resume) {
+              setParsedResume(parseData.resume);
+              console.log('[UPLOAD] LaTeX resume parsed for editor successfully');
+            }
+          } else {
+            console.warn('[UPLOAD] Failed to parse LaTeX resume for editor');
+          }
+        } catch (parseError) {
+          console.error('[UPLOAD] Error parsing LaTeX for editor:', parseError);
+        } finally {
+          setIsParsingResume(false);
+        }
+      }
 
       // Store original file in IndexedDB
       const originalDoc: OriginalDocument = {
@@ -796,6 +833,21 @@ export default function ChatPage() {
     }
   };
 
+  // NEW: Handle resume source updates from editor
+  const handleResumeSave = async (updatedSource: string) => {
+    if (!parsedResume) return;
+
+    // Update the parsed resume
+    const updatedResume = {
+      ...parsedResume,
+      rawSource: updatedSource,
+      updatedAt: new Date(),
+    };
+
+    setParsedResume(updatedResume);
+    console.log('[CHAT] Resume source updated');
+  };
+
   // Handle run LLM detection
   const handleRunLLMDetection = async () => {
     if (!document) {
@@ -990,21 +1042,31 @@ export default function ChatPage() {
             onToggleCollapse={() => setIsLeftPanelCollapsed(!isLeftPanelCollapsed)}
           />
 
-          {/* Center - Document Viewer */}
+          {/* Center - Document Viewer / Resume Editor */}
           <div className="flex-1">
-            <DocumentViewer
-              document={document}
-              onLineToggleLock={handleLineToggleLock}
-              onExport={handleExport}
-              onFormatPreservingExport={handleFormatPreservingExport}
-              hasEdits={editHistory ? editHistory.edits.length > 0 : false}
-              onUpload={handleFileUpload}
-              isUploading={isUploading}
-              selectedLine={selectedLine}
-              onLineSelect={setSelectedLine}
-              onRunLLMDetection={handleRunLLMDetection}
-              isRunningLLMDetection={isRunningLLMDetection}
-            />
+            {parsedResume && parsedResume.sourceFormat === 'latex' ? (
+              <ResumeEditorLayout
+                resume={parsedResume}
+                onSave={handleResumeSave}
+                onExport={(format) => {
+                  if (format === 'tex') handleExport('markdown');
+                }}
+              />
+            ) : (
+              <DocumentViewer
+                document={document}
+                onLineToggleLock={handleLineToggleLock}
+                onExport={handleExport}
+                onFormatPreservingExport={handleFormatPreservingExport}
+                hasEdits={editHistory ? editHistory.edits.length > 0 : false}
+                onUpload={handleFileUpload}
+                isUploading={isUploading}
+                selectedLine={selectedLine}
+                onLineSelect={setSelectedLine}
+                onRunLLMDetection={() => {}}
+                isRunningLLMDetection={false}
+              />
+            )}
           </div>
 
           {/* Right Panel - JD, Keywords, Optimization, Chat */}

@@ -5,6 +5,7 @@
 import { parseDocx, isValidDocx } from './docx';
 import { parsePdfSimple, isValidPdf } from './pdf';
 import { parseMarkdownBuffer } from './markdown';
+import { parseLatexResume } from './latex';
 import { Document, DocumentFormat, Line, ParseResult } from './types';
 import { randomUUID } from 'crypto';
 
@@ -57,6 +58,9 @@ export function detectFormat(
       case 'pdf':
         console.info('[PARSER] Detected format: PDF (by extension)');
         return 'pdf';
+      case 'tex':
+        console.info('[PARSER] Detected format: LaTeX (by extension)');
+        return 'latex';
       case 'md':
       case 'markdown':
       case 'txt':
@@ -118,6 +122,13 @@ export async function parseDocument(
         case 'pdf':
           console.info('[PARSER] Routing to PDF parser');
           lines = await parsePdfSimple(buffer);
+          break;
+
+        case 'latex':
+          console.info('[PARSER] Routing to LaTeX parser');
+          const latexContent = buffer.toString('utf-8');
+          const resume = await parseLatexResume(latexContent, fileName);
+          lines = resume.lines;
           break;
 
         case 'markdown':
