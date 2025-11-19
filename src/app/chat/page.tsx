@@ -95,6 +95,8 @@ export default function ChatPage() {
   const [resumeKeywords, setResumeKeywords] = useState<string[]>([]);
   const [disabledKeywords, setDisabledKeywords] = useState<string[]>([]);
   const [customKeywords, setCustomKeywords] = useState<string[]>([]);
+  const [isAnalyzed, setIsAnalyzed] = useState(false);
+  const [customInstructions, setCustomInstructions] = useState('');
 
   // Load chats and handle URL params on mount
   useEffect(() => {
@@ -217,17 +219,27 @@ export default function ChatPage() {
   useEffect(() => {
     if (!jobDescription || !document) return;
 
+    // Reset analyzed state when JD changes
+    setIsAnalyzed(false);
+
     const extractKeywords = async () => {
       try {
         console.log('[KEYWORDS] Auto-extracting keywords from JD');
+
+        // Extract resume content from lines
+        const resumeContent = document.lines
+          .map(line => line.text)
+          .join('\n');
+
         const response = await fetch('/api/analyze-keywords', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            resumeContent: document.content,
-            resumeFormat: document.format,
-            fileName: document.fileName || 'resume.tex',
+            resumeContent,
+            resumeFormat: document.metadata.format,
+            fileName: document.metadata.fileName || 'resume',
             jobDescription: jobDescription.trim(),
+            jobField: jobField,
             sessionId: sessionId,
             customApiKey: customApiKey || undefined
           })
@@ -238,6 +250,7 @@ export default function ChatPage() {
         if (response.ok && data.analysis) {
           setJdKeywords(data.analysis.jdKeywords || []);
           setResumeKeywords(data.analysis.resumeKeywords || []);
+          setIsAnalyzed(true);
           console.log('[KEYWORDS] Auto-extracted:', data.analysis.jdKeywords?.length, 'JD keywords');
         }
       } catch (error) {
@@ -452,13 +465,20 @@ export default function ChatPage() {
       setIsAnalyzing(true);
       setError(null);
 
+      // Extract resume content from lines
+      const resumeContent = document.lines
+        .map(line => line.text)
+        .join('\n');
+
+      console.log('[KEYWORDS] Resume content length:', resumeContent.length);
+
       const response = await fetch('/api/analyze-keywords', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          resumeContent: document.content,
-          resumeFormat: document.format,
-          fileName: document.fileName || 'resume.tex',
+          resumeContent,
+          resumeFormat: document.metadata.format,
+          fileName: document.metadata.fileName || 'resume',
           jobDescription: jobDescription.trim(),
           sessionId: sessionId,
           customApiKey: customApiKey || undefined
@@ -477,6 +497,7 @@ export default function ChatPage() {
       if (data.analysis) {
         setJdKeywords(data.analysis.jdKeywords || []);
         setResumeKeywords(data.analysis.resumeKeywords || []);
+        setIsAnalyzed(true);
       }
 
       // Also update old state for backwards compatibility
@@ -516,12 +537,17 @@ export default function ChatPage() {
 
       console.log('[OPTIMIZATION] Active keywords:', activeKeywords.length);
 
+      // Extract resume content from lines
+      const resumeContent = document.lines
+        .map(line => line.text)
+        .join('\n');
+
       const response = await fetch('/api/optimize-resume', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          resumeContent: document.content,
-          resumeFormat: document.format,
+          resumeContent,
+          resumeFormat: document.metadata.format,
           jobDescription: jobDescription.trim(),
           jobField,
           keywords: activeKeywords,
@@ -543,13 +569,14 @@ export default function ChatPage() {
       }
 
       // Update document with optimized content
-      const optimizedDoc: Document = {
-        ...document,
-        content: data.optimizedResume || data.optimizedContent,
-        lines: data.document?.lines || document.lines
-      };
-      setDocument(optimizedDoc);
-      saveDocument(optimizedDoc);
+      if (data.optimizedResume) {
+        const optimizedDoc: Document = {
+          ...document,
+          lines: data.optimizedResume.lines || document.lines
+        };
+        setDocument(optimizedDoc);
+        saveDocument(optimizedDoc);
+      }
 
       setTokenUsage(data.tokenUsage || null);
 
@@ -990,6 +1017,7 @@ export default function ChatPage() {
                   jobField={jobField}
                   onJobDescriptionChange={setJobDescription}
                   onJobFieldChange={setJobField}
+                  isAnalyzed={isAnalyzed}
                 />
               </div>
             )}
@@ -1014,10 +1042,10 @@ export default function ChatPage() {
               <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                 <SimplifiedOptimizationControls
                   onOptimize={handleOptimizeWithKeywords}
-                  onAnalyze={handleAnalyzeKeywords}
                   disabled={!jobDescription}
                   isOptimizing={isOptimizing}
-                  isAnalyzing={isAnalyzing}
+                  customInstructions={customInstructions}
+                  onCustomInstructionsChange={setCustomInstructions}
                 />
               </div>
             )}

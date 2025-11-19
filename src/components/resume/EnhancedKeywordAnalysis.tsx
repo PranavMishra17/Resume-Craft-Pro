@@ -25,20 +25,34 @@ export default function EnhancedKeywordAnalysis({
   const [isAddingKeyword, setIsAddingKeyword] = useState(false)
   const [newKeywords, setNewKeywords] = useState('')
 
-  // Calculate keyword stats
-  const presentKeywords = jdKeywords.filter(k =>
+  // Calculate keyword stats - separate JD and custom keywords
+  const presentJDKeywords = jdKeywords.filter(k =>
     resumeKeywords.some(rk => rk.toLowerCase() === k.toLowerCase())
   )
-  const missingKeywords = jdKeywords.filter(k =>
+  const missingJDKeywords = jdKeywords.filter(k =>
     !resumeKeywords.some(rk => rk.toLowerCase() === k.toLowerCase())
   )
 
-  const activeKeywords = [...jdKeywords, ...customKeywords].filter(
-    k => !disabledKeywords.includes(k)
+  // Classify custom keywords as present or missing
+  const presentCustomKeywords = customKeywords.filter(k =>
+    resumeKeywords.some(rk => rk.toLowerCase() === k.toLowerCase())
+  )
+  const missingCustomKeywords = customKeywords.filter(k =>
+    !resumeKeywords.some(rk => rk.toLowerCase() === k.toLowerCase())
   )
 
-  const coverage = jdKeywords.length > 0
-    ? Math.round((presentKeywords.length / jdKeywords.length) * 100)
+  // Combine all present and missing keywords
+  const presentKeywords = [...presentJDKeywords, ...presentCustomKeywords]
+  const missingKeywords = [...missingJDKeywords, ...missingCustomKeywords]
+
+  // Calculate active (non-disabled) keywords
+  const activePresentKeywords = presentKeywords.filter(k => !disabledKeywords.includes(k))
+  const activeMissingKeywords = missingKeywords.filter(k => !disabledKeywords.includes(k))
+  const totalActiveKeywords = activePresentKeywords.length + activeMissingKeywords.length
+
+  // Calculate coverage based on active keywords only
+  const coverage = totalActiveKeywords > 0
+    ? Math.round((activePresentKeywords.length / totalActiveKeywords) * 100)
     : 0
 
   const handleAddKeywords = () => {
@@ -87,39 +101,41 @@ export default function EnhancedKeywordAnalysis({
       </div>
 
       {/* Coverage Stats */}
-      <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Keyword Coverage
-          </span>
-          <span className={`text-2xl font-bold ${getCoverageColor(coverage)}`}>
-            {coverage}%
-          </span>
-        </div>
+      {totalActiveKeywords > 0 && (
+        <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Keyword Coverage
+            </span>
+            <span className={`text-2xl font-bold ${getCoverageColor(coverage)}`}>
+              {coverage}%
+            </span>
+          </div>
 
-        {/* Progress Bar */}
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-2">
-          <div
-            className={`h-2 rounded-full transition-all ${
-              coverage >= 80
-                ? 'bg-green-500'
-                : coverage >= 60
-                ? 'bg-yellow-500'
-                : 'bg-red-500'
-            }`}
-            style={{ width: `${coverage}%` }}
-          />
-        </div>
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-2">
+            <div
+              className={`h-2 rounded-full transition-all ${
+                coverage >= 80
+                  ? 'bg-green-500'
+                  : coverage >= 60
+                  ? 'bg-yellow-500'
+                  : 'bg-red-500'
+              }`}
+              style={{ width: `${coverage}%` }}
+            />
+          </div>
 
-        <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-          <span>
-            {presentKeywords.length} of {jdKeywords.length} keywords present
-          </span>
-          <span className={`font-semibold ${getCoverageColor(coverage)}`}>
-            {getCoverageStatus(coverage)}
-          </span>
+          <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+            <span>
+              {activePresentKeywords.length} of {totalActiveKeywords} active keywords present
+            </span>
+            <span className={`font-semibold ${getCoverageColor(coverage)}`}>
+              {getCoverageStatus(coverage)}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Add Custom Keywords */}
       {isAddingKeyword && (
@@ -170,29 +186,38 @@ export default function EnhancedKeywordAnalysis({
       {missingKeywords.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-semibold text-red-700 dark:text-red-400">
-            Missing Keywords ({missingKeywords.filter(k => !disabledKeywords.includes(k)).length})
+            Missing Keywords ({activeMissingKeywords.length})
           </h4>
           <div className="flex flex-wrap gap-2">
             {missingKeywords.map((keyword) => {
               const isDisabled = disabledKeywords.includes(keyword)
+              const isCustom = customKeywords.includes(keyword)
               return (
-                <button
+                <div
                   key={keyword}
-                  onClick={() => onToggleKeyword(keyword)}
-                  className={`group relative px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                  className={`group relative flex items-center gap-1 px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all ${
                     isDisabled
                       ? 'border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 line-through'
                       : 'border-red-500 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30'
                   }`}
-                  title={isDisabled ? 'Click to enable' : 'Click to disable'}
                 >
-                  {keyword}
-                  {!isDisabled && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                      ×
-                    </span>
+                  <button
+                    onClick={() => onToggleKeyword(keyword)}
+                    className="flex-1"
+                    title={isDisabled ? 'Click to enable' : 'Click to disable'}
+                  >
+                    {keyword}
+                  </button>
+                  {isCustom && (
+                    <button
+                      onClick={() => onRemoveCustomKeyword(keyword)}
+                      className="ml-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                      title="Remove custom keyword"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   )}
-                </button>
+                </div>
               )
             })}
           </div>
@@ -203,68 +228,38 @@ export default function EnhancedKeywordAnalysis({
       {presentKeywords.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-semibold text-green-700 dark:text-green-400">
-            Present Keywords ({presentKeywords.filter(k => !disabledKeywords.includes(k)).length})
+            Present Keywords ({activePresentKeywords.length})
           </h4>
           <div className="flex flex-wrap gap-2">
             {presentKeywords.map((keyword) => {
               const isDisabled = disabledKeywords.includes(keyword)
-              return (
-                <button
-                  key={keyword}
-                  onClick={() => onToggleKeyword(keyword)}
-                  className={`group relative px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all ${
-                    isDisabled
-                      ? 'border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 line-through'
-                      : 'border-green-500 dark:border-green-600 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30'
-                  }`}
-                  title={isDisabled ? 'Click to enable' : 'Click to disable'}
-                >
-                  {keyword}
-                  <Check className="inline-block w-3 h-3 ml-1" />
-                  {!isDisabled && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                      ×
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Custom Keywords */}
-      {customKeywords.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-400">
-            Custom Keywords ({customKeywords.filter(k => !disabledKeywords.includes(k)).length})
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {customKeywords.map((keyword) => {
-              const isDisabled = disabledKeywords.includes(keyword)
+              const isCustom = customKeywords.includes(keyword)
               return (
                 <div
                   key={keyword}
                   className={`group relative flex items-center gap-1 px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all ${
                     isDisabled
                       ? 'border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 line-through'
-                      : 'border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                      : 'border-green-500 dark:border-green-600 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30'
                   }`}
                 >
                   <button
                     onClick={() => onToggleKeyword(keyword)}
-                    className="flex-1"
+                    className="flex-1 flex items-center gap-1"
                     title={isDisabled ? 'Click to enable' : 'Click to disable'}
                   >
                     {keyword}
+                    <Check className="w-3 h-3" />
                   </button>
-                  <button
-                    onClick={() => onRemoveCustomKeyword(keyword)}
-                    className="ml-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                    title="Remove keyword"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
+                  {isCustom && (
+                    <button
+                      onClick={() => onRemoveCustomKeyword(keyword)}
+                      className="ml-1 text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300"
+                      title="Remove custom keyword"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               )
             })}
@@ -273,13 +268,15 @@ export default function EnhancedKeywordAnalysis({
       )}
 
       {/* Active Keywords Summary */}
-      <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-        <p className="text-xs text-gray-600 dark:text-gray-400">
-          <strong>{activeKeywords.length}</strong> active keywords •{' '}
-          <strong>{disabledKeywords.length}</strong> disabled •{' '}
-          <strong>{customKeywords.length}</strong> custom
-        </p>
-      </div>
+      {totalActiveKeywords > 0 && (
+        <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-xs text-gray-600 dark:text-gray-400">
+            <strong>{totalActiveKeywords}</strong> active keywords •{' '}
+            <strong>{disabledKeywords.length}</strong> disabled •{' '}
+            <strong>{customKeywords.length}</strong> custom
+          </p>
+        </div>
+      )}
     </div>
   )
 }

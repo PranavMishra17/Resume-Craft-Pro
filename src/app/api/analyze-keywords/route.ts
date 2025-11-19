@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
       resumeFormat,
       fileName,
       jobDescription,
+      jobField,
       sessionId,
       customApiKey
     } = body;
@@ -69,31 +70,34 @@ export async function POST(request: NextRequest) {
     const tracker = getTokenTracker();
     tracker.initSession(sessionId);
 
-    // Parse resume
-    console.info('[ANALYZE_API] Parsing resume');
-    let resume: Resume;
+    // For keyword analysis, we don't need full resume parsing
+    // Just create a simple Resume object with the text content
+    console.info('[ANALYZE_API] Creating resume object for analysis');
 
-    try {
-      if (resumeFormat === 'latex') {
-        resume = await parseLatexResume(resumeContent, fileName);
-      } else {
-        return NextResponse.json(
-          { error: 'Only LaTeX format is currently supported' },
-          { status: 400 }
-        );
-      }
+    const resume: Resume = {
+      id: `temp-${Date.now()}`,
+      metadata: {
+        totalLines: resumeContent.split('\n').length,
+        totalPages: 1,
+        format: resumeFormat as 'latex' | 'docx' | 'pdf' | 'markdown',
+        fileName: fileName
+      },
+      lines: resumeContent.split('\n').map((text, index) => ({
+        lineNumber: index + 1,
+        text,
+        pageNumber: 1,
+        isLocked: false,
+        isPlaceholder: false,
+        isEditable: true,
+        isStructural: false,
+        bulletLevel: 0
+      })),
+      sections: [],
+      detectedKeywords: [],
+      format: resumeFormat as 'latex' | 'docx' | 'pdf' | 'markdown'
+    };
 
-      console.info(`[ANALYZE_API] Resume parsed: ${resume.lines.length} lines`);
-    } catch (error) {
-      console.error('[ANALYZE_API] Resume parsing failed:', error);
-      return NextResponse.json(
-        {
-          error: 'Failed to parse resume',
-          details: error instanceof Error ? error.message : 'Unknown error'
-        },
-        { status: 400 }
-      );
-    }
+    console.info(`[ANALYZE_API] Resume prepared: ${resume.lines.length} lines`);
 
     // Extract keywords
     console.info('[ANALYZE_API] Extracting keywords');
@@ -105,7 +109,7 @@ export async function POST(request: NextRequest) {
     try {
       // Extract in parallel for speed
       [jdKeywords, resumeKeywords] = await Promise.all([
-        keywordAnalyzer.extractJDKeywords(jobDescription),
+        keywordAnalyzer.extractJDKeywords(jobDescription, jobField),
         keywordAnalyzer.extractResumeKeywords(resume)
       ]);
 

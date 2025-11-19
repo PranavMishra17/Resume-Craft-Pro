@@ -9,8 +9,8 @@ An AI-powered resume optimization platform that intelligently tailors your resum
 ## Documentation
 
 - **[Quick Start Guide](QUICKSTART.md)** - Get up and running in 5 minutes
-- **[Project Summary](PROJECT_SUMMARY.md)** - Complete feature overview and implementation details
-- **[Architecture](RESUME_OPTIMIZATION_ARCHITECTURE.md)** - System design and optimization workflow
+- **[Architecture Guide](Architecture.md)** - Complete system architecture and optimization workflow
+- **[Project Summary](PROJECT_SUMMARY.md)** - Feature overview and implementation details
 - **[Libraries Guide](LIBRARIES.md)** - Export and parsing library documentation
 
 ## Key Features
@@ -46,12 +46,15 @@ An AI-powered resume optimization platform that intelligently tailors your resum
 - **Preserve Length**: Maintain bullet point word count (±5 words)
 - **Maintain Tone**: Keep professional voice consistent
 
-### 📁 Context-Aware Optimization
+### 📁 Context-Aware Optimization (NEW)
 - **Resume Upload**: Main resume file (LaTeX, DOCX, PDF, MD)
-- **Projects File**: Additional context for technical projects
-- **Portfolio File**: Showcase work and achievements
-- **Job Description**: Target role requirements
-- **File Size Limits**: 5MB per file, 20MB total session
+- **Add Context Modal**: Optional drag-drop interface for projects/portfolio
+- **Projects Context**: Multiple project descriptions for better keyword mapping
+- **Portfolio Context**: Showcase work and achievements not in resume
+- **Job Description**: Target role requirements with industry selector
+- **Visual Feedback**: Dashed golden border (empty) → Solid gold gradient (active)
+- **Persistent Storage**: Context files saved with each chat session
+- **Individual Management**: Save, edit, and delete entries independently
 
 ## Tech Stack
 
@@ -70,37 +73,48 @@ An AI-powered resume optimization platform that intelligently tailors your resum
 ```
 /src
   /app
-    page.tsx                    # Main UI with integrated optimization workflow
+    page.tsx                    # Homepage (/ route)
+    /chat
+      page.tsx                  # Main chat interface (/chat route)
     layout.tsx                  # App layout and metadata
     /api
-      /upload-context           # File upload endpoint (resume, projects, portfolio, JD)
+      /parse                    # Document parsing endpoint
       /analyze-keywords         # Quick keyword analysis without optimization
       /optimize-resume          # Full 9-step optimization workflow
   /lib
     /parsers
-      types.ts                  # TypeScript interfaces (15+ types)
-      latex.ts                  # LaTeX parsing with line classification
-      docx.ts                   # DOCX parsing
-      pdf.ts                    # PDF parsing
+      types.ts                  # TypeScript interfaces (30+ types)
+      latex.ts                  # LaTeX parsing with structure detection
+      docx.ts                   # DOCX parsing with mammoth
+      pdf.ts                    # PDF text extraction
       markdown.ts               # Markdown parsing
     /optimization
       keyword-analyzer.ts       # Keyword extraction and gap analysis
-      parallel-optimizer.ts     # Concurrent bullet optimization
+      parallel-optimizer.ts     # Concurrent bullet optimization with p-limit
     /tracking
       token-tracker.ts          # Token usage tracking and cost calculation
+    /storage
+      chats.ts                  # localStorage wrapper for chats & context
     /export
       latex.ts                  # LaTeX export with format preservation
-      docx.ts                   # DOCX export
+      docx.ts                   # DOCX generation
       docx-preserve.ts          # Format-preserving DOCX export
-      pdf.ts                    # PDF export
+      pdf.ts                    # PDF generation with jsPDF
       markdown.ts               # Markdown export
   /components
+    HomePage.tsx                # Landing page component
+    /sidebar
+      TabbedLeftPanel.tsx       # Collapsible chat history sidebar
+      ChatHistory.tsx           # Chat list component
     /resume
-      ContextFileManager.tsx    # File upload and management
-      KeywordAnalysisPanel.tsx  # Keyword gap visualization
+      ResumeUploadModal.tsx     # Upload interface for new chats
+      JobDescriptionPanel.tsx   # JD input with industry selector
+      EnhancedKeywordAnalysis.tsx # Keyword visualization
+      SimplifiedOptimizationControls.tsx # Analyze/Craft buttons
       TokenCounter.tsx          # Real-time token tracking display
-      OptimizationControls.tsx  # Optimization settings and controls
-      LaTeXViewer.tsx           # CodeMirror LaTeX editor
+    /modals
+      ContextFilesModal.tsx     # Add context files (projects/portfolio) - NEW
+      SettingsModal.tsx         # API key configuration
 ```
 
 ## Getting Started
@@ -144,26 +158,48 @@ npm run dev
 
 ## Usage
 
-### 1. Upload Your Resume
+### 1. Start from Homepage
 
-Click "Upload Resume" and select your resume file (LaTeX .tex, DOCX, PDF, or Markdown). The system will:
+Visit http://localhost:3000 and choose:
+- **Start New Chat**: Begin fresh optimization session
+- **Load Previous Chat**: Continue existing work
+- **Settings**: Configure your Gemini API key
+
+### 2. Upload Your Resume
+
+On the `/chat` page, click "Upload Resume" and select your file (LaTeX .tex, DOCX, PDF, or Markdown). The system will:
 - Parse the document structure
 - Classify lines as editable (bullets) vs structural (titles, dates)
 - Detect sections (Experience, Education, Skills, Projects)
 - Extract existing keywords
 
-### 2. Add Context Files (Optional but Recommended)
+### 3. Add Context Files (Optional but Recommended)
 
-- **Projects File**: Upload a document with detailed project descriptions
-- **Portfolio File**: Upload a file showcasing your work and achievements
+Click the **"Add Context"** button in the header (next to "Re-upload Resume"):
+- **Drag & drop** or **browse** files (.txt, .md, .docx, .pdf)
+- Add **Projects**: Multiple project descriptions with technologies used
+- Add **Portfolio**: Work samples, achievements, side projects
+- **Individual save**: Each entry can be saved, edited, or deleted separately
+- **Visual feedback**: Button changes from dashed golden border to solid gold gradient when active
+- **Persistent**: Context files are saved with your chat session
 
-These provide additional context for smarter keyword mapping.
+These provide additional context for smarter keyword mapping and better optimization results.
 
-### 3. Paste Job Description
+### 4. Paste Job Description
 
-Copy the target job description and paste it into the Job Description field. You can also upload a .txt file.
+Copy the target job description and paste it into the Job Description field:
+- Select **Industry** from dropdown (optional but recommended - shows golden border when selected)
+- Auto keyword extraction starts after 1 second of inactivity
+- Or click "Analyze Keywords" for immediate analysis
 
-### 4. Configure Optimization Settings
+### 5. Configure Optimization Settings (Advanced)
+
+Click **"Advanced Settings"** to customize optimization:
+
+**Keyword Management:**
+- Toggle keywords on/off with checkboxes
+- Add custom keywords manually
+- View coverage percentage
 
 **Optimization Mode:**
 - **Targeted**: Only optimize bullets missing keywords (faster, cost-effective)
@@ -175,18 +211,19 @@ Copy the target job description and paste it into the Job Description field. You
 - Maintain Tone: Keep professional voice
 - Max Keywords Per Bullet: 1-5 (default: 2)
 - Min Confidence Score: 0-100% (default: 70%)
+- Custom Instructions: Add specific guidelines for AI
 
-### 5. Analyze Keywords (Optional)
+### 6. Analyze Keywords (Optional)
 
-Click "Analyze Keywords" to see:
+Click **"Analyze Keywords"** to see:
 - Keywords extracted from job description (15-20 keywords)
 - Keywords present in your resume
 - Missing keywords with coverage percentage
 - Actionable suggestions
 
-### 6. Optimize Resume
+### 7. Optimize Resume
 
-Click "Start Optimization" to begin the 9-step workflow:
+Click **"Craft Resume"** to begin the 9-step workflow:
 
 1. **Parse Resume**: Extract structure and content
 2. **Extract JD Keywords**: AI identifies 15-20 key technical keywords
@@ -198,20 +235,29 @@ Click "Start Optimization" to begin the 9-step workflow:
 8. **Apply Changes**: Update resume with optimized content
 9. **Re-analyze**: Calculate final keyword coverage
 
-### 7. Review Changes
+### 8. Review Changes
 
-- View original vs optimized content side-by-side
-- See keyword coverage improvement
-- Track token usage and estimated cost
-- Accept or reject individual changes
+- View keyword coverage improvement
+- Track token usage and estimated cost in real-time
+- Review optimization results in the chat interface
+- Download optimized resume
 
-### 8. Export
+### 9. Export
 
 Download your optimized resume in:
 - **LaTeX (.tex)**: Format-preserving export
 - **DOCX (.docx)**: Format-preserving export
 - **PDF (.pdf)**: Standard PDF export
 - **Markdown (.md)**: Plain text export
+
+### 10. Manage Chats
+
+Use the **collapsible left sidebar** to:
+- View all chat history
+- Switch between optimization sessions
+- Create new chats
+- Delete old chats
+- Context files persist with each chat
 
 ## Optimization Workflow Details
 
@@ -226,12 +272,13 @@ The AI extracts keywords focusing on:
 
 ### Keyword Mapping Algorithm
 
-1. **Context Building**: Combines resume + projects + portfolio
-2. **Relevance Scoring**: AI assigns keywords to most relevant bullets
+1. **Context Building**: Combines resume + projects + portfolio (from Add Context modal)
+2. **Relevance Scoring**: AI assigns keywords to most relevant bullets using context
 3. **Balance Constraints**:
    - Each keyword → max 1-2 bullets
-   - Each bullet → max 2-3 new keywords
+   - Each bullet → max 2-3 new keywords (configurable)
 4. **Validation**: Ensures no keyword stuffing or awkward placement
+5. **Context-Aware**: Uses optional projects/portfolio context for smarter mapping
 
 ### Parallel Optimization
 
@@ -269,30 +316,21 @@ Example session cost for 20 bullets: ~$0.05-0.15
 
 ## API Endpoints
 
-### POST /api/upload-context
+### POST /api/parse
 
-Upload context files (resume, projects, portfolio, job description).
+Parse uploaded resume file.
 
 **Request:**
 ```typescript
 FormData {
-  resume?: File
-  projects?: File
-  portfolio?: File
-  jobDescription?: File
+  file: File  // .tex, .docx, .pdf, .md
 }
 ```
 
 **Response:**
 ```typescript
 {
-  success: boolean
-  files: {
-    resume?: { fileName, content, format, size }
-    projects?: { fileName, content, size }
-    portfolio?: { fileName, content, size }
-    jobDescription?: { content, size }
-  }
+  document: Document  // Parsed lines with classification
 }
 ```
 
@@ -305,8 +343,10 @@ Quick keyword analysis without optimization.
 {
   resumeContent: string
   resumeFormat: 'latex' | 'docx' | 'pdf' | 'markdown'
+  fileName: string
   jobDescription: string
   sessionId: string
+  customApiKey?: string
 }
 ```
 
@@ -318,7 +358,6 @@ Quick keyword analysis without optimization.
     resumeKeywords: string[]
     missingKeywords: string[]
     coverage: number
-    suggestions: string[]
   }
   tokenUsage: TokenUsage
 }
@@ -334,12 +373,18 @@ Full 9-step resume optimization workflow.
   resumeContent: string
   resumeFormat: 'latex' | 'docx' | 'pdf' | 'markdown'
   jobDescription: string
-  projects?: string
-  portfolio?: string
-  customInstructions?: string
-  config: OptimizationConfig
+  jobField: string
+  keywords: string[]  // Active keywords (not disabled)
   sessionId: string
   customApiKey?: string
+  config: {
+    mode: 'targeted' | 'full'
+    maxConcurrentCalls: number  // 1-10, default: 5
+    preserveLength: boolean
+    maintainTone: boolean
+    maxKeywordsPerBullet: number
+    minConfidenceScore: number
+  }
 }
 ```
 
@@ -359,13 +404,61 @@ Full 9-step resume optimization workflow.
 }
 ```
 
-## File Size Limits
+## UI/UX Features
 
-- Resume: 5MB
-- Projects: 5MB
-- Portfolio: 5MB
-- Job Description: 5MB
-- Total session: 20MB
+### Homepage
+- Clean landing page with branding
+- Three action buttons: Start New Chat, Load Previous Chat, Settings
+- Direct routing to `/chat` interface
+
+### Chat Interface
+- **Three-panel layout**:
+  - Left: Collapsible chat history sidebar
+  - Center: Document viewer (when resume uploaded)
+  - Right: Job description, keywords, controls, chat
+- **Header controls**: Settings, Re-upload Resume, Add Context, Export
+- **Real-time feedback**: Token counter, loading states
+- **Visual indicators**: Golden borders for active features
+- **Responsive collapse**: Left sidebar can be hidden for more space
+
+### Context Files Modal
+- **Drag & drop** file upload area
+- **Manual entry** with type selector (Project/Portfolio)
+- **Individual management**: Save, edit, delete entries
+- **Visual feedback**: Collapsed view shows file summary
+- **PDF support**: All common text formats (.txt, .md, .docx, .pdf)
+- **Optional**: Clear messaging that all fields are optional
+
+## Storage & Persistence
+
+### Current Implementation: localStorage
+- **Browser-based**: All data stored locally in your browser
+- **Fast performance**: Instant read/write operations
+- **No backend required**: Works completely offline
+- **Privacy-focused**: Your data never leaves your device
+- **Persistent across sessions**: Chats and context files saved automatically
+
+### What's Stored
+- Chat history and messages
+- Uploaded resume content
+- Context files (projects/portfolio)
+- Job descriptions
+- Keyword preferences (disabled/custom keywords)
+- Industry selection
+- Optimization settings
+
+### Limitations
+- Browser-specific (not shared across devices)
+- ~5-10MB storage limit per domain
+- Cleared when browser cache is cleared
+- Not suitable for team collaboration
+
+### For Production (Future)
+To enable cloud storage and sharing:
+- Add database (PostgreSQL/MongoDB/Supabase)
+- Implement user authentication (NextAuth.js)
+- Create API routes for data persistence
+- Enable cross-device access
 
 ## Limitations
 
@@ -374,6 +467,7 @@ Full 9-step resume optimization workflow.
 - Image content is not extracted from PDFs
 - Complex LaTeX macros may not be fully preserved
 - Maximum concurrent LLM calls: 10
+- localStorage storage limit (5-10MB per domain)
 
 ## Development
 
@@ -413,6 +507,14 @@ NEXT_PUBLIC_APP_URL=https://your-domain.com
 
 ## Roadmap
 
+### Near Term
+- [ ] Database backend (PostgreSQL/MongoDB)
+- [ ] User authentication system
+- [ ] Cloud storage for cross-device access
+- [ ] Mobile responsive layout
+- [ ] Dark mode theme
+
+### Future Enhancements
 - [ ] Support for more LaTeX templates
 - [ ] PDF format-preserving export
 - [ ] Multi-language support
@@ -421,6 +523,10 @@ NEXT_PUBLIC_APP_URL=https://your-domain.com
 - [ ] Chrome extension for one-click optimization
 - [ ] Integration with job boards (LinkedIn, Indeed)
 - [ ] Analytics dashboard for application tracking
+- [ ] Real-time collaboration
+- [ ] Version history with diff view
+- [ ] Keyboard shortcuts
+- [ ] Undo/redo functionality
 
 ## Contributing
 

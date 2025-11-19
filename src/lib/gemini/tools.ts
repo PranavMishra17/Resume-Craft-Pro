@@ -2,7 +2,7 @@
  * Gemini Tools - Function definitions for document operations
  */
 
-import { Type } from '@google/genai';
+import { Type } from './client';
 import { Document, SearchResult, Line, EditParams, EditResult } from '../parsers/types';
 
 /**

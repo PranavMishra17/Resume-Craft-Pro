@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       resumeFormat,
       fileName,
       jobDescription,
+      jobField,
       projects,
       portfolio,
       customInstructions,
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest) {
 
     let jdKeywords: string[];
     try {
-      jdKeywords = await keywordAnalyzer.extractJDKeywords(jobDescription);
+      jdKeywords = await keywordAnalyzer.extractJDKeywords(jobDescription, jobField);
       console.info(`[OPTIMIZE_API] Extracted ${jdKeywords.length} keywords from JD`);
     } catch (error) {
       console.error('[OPTIMIZE_API] JD keyword extraction failed:', error);

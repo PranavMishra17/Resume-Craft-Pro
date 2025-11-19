@@ -1,12 +1,12 @@
 /**
- * Gemini Client - Handles communication with Google Generative AI (Gemini 2.5 Flash)
- * Uses the new @google/genai library
+ * Gemini Client - Handles communication with Google Generative AI (Gemini 2.0 Flash)
+ * Uses the @google/generative-ai library
  */
 
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenerativeAI, FunctionDeclarationSchemaType } from '@google/generative-ai';
 
 // Export Type for use in tool definitions
-export { Type };
+export { FunctionDeclarationSchemaType as Type };
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // ms
@@ -15,14 +15,14 @@ const DEFAULT_MODEL = 'gemini-2.0-flash-exp';
 /**
  * Initialize Gemini client with API key
  */
-export function initializeGemini(apiKey: string): GoogleGenAI {
+export function initializeGemini(apiKey: string): GoogleGenerativeAI {
   try {
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY is required');
     }
 
     console.info('[GEMINI_CLIENT] Initializing Gemini client');
-    const genAI = new GoogleGenAI({ apiKey });
+    const genAI = new GoogleGenerativeAI(apiKey);
 
     return genAI;
 
@@ -36,7 +36,7 @@ export function initializeGemini(apiKey: string): GoogleGenAI {
  * Generate content with retry logic
  */
 export async function generateWithRetry(
-  client: GoogleGenAI,
+  client: GoogleGenerativeAI,
   prompt: string,
   modelName: string = DEFAULT_MODEL
 ): Promise<string> {
@@ -46,12 +46,13 @@ export async function generateWithRetry(
     try {
       console.info(`[GEMINI_CLIENT] Generating content (attempt ${attempt}/${MAX_RETRIES})`);
 
-      const response = await client.models.generateContent({
-        model: modelName,
-        contents: prompt
-      });
+      // Get the generative model
+      const model = client.getGenerativeModel({ model: modelName });
 
-      const text = response.text;
+      // Generate content
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const text = response.text();
 
       if (!text) {
         throw new Error('Empty response from Gemini');
@@ -80,7 +81,7 @@ export async function generateWithRetry(
  * Chat with conversation history and function calling support
  */
 export async function chatWithHistory(
-  client: GoogleGenAI,
+  client: GoogleGenerativeAI,
   prompt: string,
   tools?: any[],
   modelName: string = DEFAULT_MODEL
@@ -90,46 +91,47 @@ export async function chatWithHistory(
     console.info('[GEMINI_CLIENT] Tools provided:', tools ? 'YES' : 'NO');
     console.info('[GEMINI_CLIENT] Number of tools:', tools?.length || 0);
 
-    // Build request payload with correct format
-    const requestPayload: any = {
-      model: modelName,
-      contents: prompt
-    };
-
-    // Add tools in config format if provided
+    // Configure model with tools if provided
+    const modelConfig: any = { model: modelName };
     if (tools && tools.length > 0) {
-      requestPayload.config = {
-        tools: tools
-      };
-      console.info('[GEMINI_CLIENT] Request payload includes tools in config');
+      modelConfig.tools = tools;
+      console.info('[GEMINI_CLIENT] Model configured with tools');
       console.info('[GEMINI_CLIENT] Tools structure:', JSON.stringify(tools, null, 2));
     }
 
+    // Get the generative model
+    const model = client.getGenerativeModel(modelConfig);
+
     console.info('[GEMINI_CLIENT] Sending request to Gemini...');
-    const response = await client.models.generateContent(requestPayload);
+    const result = await model.generateContent(prompt);
+    const response = result.response;
 
     // Debug: Log the full response structure
     console.info('[GEMINI_CLIENT] ===== RAW RESPONSE =====');
-    console.info('[GEMINI_CLIENT] Response keys:', Object.keys(response));
-    console.info('[GEMINI_CLIENT] Full response:', JSON.stringify(response, null, 2));
+    console.info('[GEMINI_CLIENT] Response received');
     console.info('[GEMINI_CLIENT] =======================');
 
-    // Check for function calls
-    const functionCalls = response.functionCalls;
-    console.info('[GEMINI_CLIENT] Function calls from response:', functionCalls);
-    console.info('[GEMINI_CLIENT] Function calls type:', typeof functionCalls);
-    console.info('[GEMINI_CLIENT] Function calls is array:', Array.isArray(functionCalls));
+    // Check for function calls in the response candidates
+    const candidates = response.candidates;
+    if (candidates && candidates.length > 0) {
+      const firstCandidate = candidates[0];
+      if (firstCandidate.content && firstCandidate.content.parts) {
+        const functionCalls = firstCandidate.content.parts
+          .filter((part: any) => part.functionCall)
+          .map((part: any) => part.functionCall);
 
-    if (functionCalls && Array.isArray(functionCalls) && functionCalls.length > 0) {
-      console.info(`[GEMINI_CLIENT] ✓ Received ${functionCalls.length} function calls`);
-      functionCalls.forEach((call, idx) => {
-        console.info(`[GEMINI_CLIENT] Function call ${idx + 1}:`, JSON.stringify(call, null, 2));
-      });
-      return { functionCalls };
+        if (functionCalls.length > 0) {
+          console.info(`[GEMINI_CLIENT] ✓ Received ${functionCalls.length} function calls`);
+          functionCalls.forEach((call, idx) => {
+            console.info(`[GEMINI_CLIENT] Function call ${idx + 1}:`, JSON.stringify(call, null, 2));
+          });
+          return { functionCalls };
+        }
+      }
     }
 
     // Otherwise return text response
-    const text = response.text;
+    const text = response.text();
     console.info('[GEMINI_CLIENT] ✓ Received text response (length:', text?.length || 0, ')');
     console.info('[GEMINI_CLIENT] Text preview:', text?.substring(0, 200));
 

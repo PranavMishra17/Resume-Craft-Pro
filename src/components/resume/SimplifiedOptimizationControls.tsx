@@ -1,47 +1,42 @@
 'use client'
 
-import { Sparkles, Search } from 'lucide-react'
+import { useState } from 'react'
+import { Sparkles, FileText, X } from 'lucide-react'
 
 interface SimplifiedOptimizationControlsProps {
   onOptimize: () => void
-  onAnalyze?: () => void
   disabled?: boolean
   isOptimizing?: boolean
-  isAnalyzing?: boolean
+  customInstructions?: string
+  onCustomInstructionsChange?: (instructions: string) => void
 }
 
 export default function SimplifiedOptimizationControls({
   onOptimize,
-  onAnalyze,
   disabled = false,
   isOptimizing = false,
-  isAnalyzing = false
+  customInstructions = '',
+  onCustomInstructionsChange
 }: SimplifiedOptimizationControlsProps) {
+  const [showCustomInstructions, setShowCustomInstructions] = useState(false)
+
   return (
     <div className="space-y-3">
       {/* Button Group */}
       <div className="flex gap-2">
-        {/* Analyze Keywords Button */}
-        {onAnalyze && (
-          <button
-            onClick={onAnalyze}
-            disabled={disabled || isAnalyzing || isOptimizing}
-            className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm shadow-md hover:shadow-lg transition-all"
-            title="Analyze keywords from job description"
-          >
-            {isAnalyzing ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span className="hidden sm:inline">Analyzing...</span>
-              </>
-            ) : (
-              <>
-                <Search className="w-4 h-4" />
-                <span className="hidden sm:inline">Analyze</span>
-              </>
-            )}
-          </button>
-        )}
+        {/* Custom Instructions Button */}
+        <button
+          onClick={() => setShowCustomInstructions(!showCustomInstructions)}
+          className={`flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium text-sm shadow-md hover:shadow-lg transition-all ${
+            showCustomInstructions || customInstructions
+              ? 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-gray-600 hover:bg-gray-700 text-white'
+          }`}
+          title="Add custom instructions for optimization"
+        >
+          <FileText className="w-4 h-4" />
+          <span className="hidden sm:inline">Instructions</span>
+        </button>
 
         {/* Craft Resume Button */}
         <button
@@ -62,6 +57,34 @@ export default function SimplifiedOptimizationControls({
           )}
         </button>
       </div>
+
+      {/* Custom Instructions Input */}
+      {showCustomInstructions && (
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-blue-900 dark:text-blue-300">
+              Custom Instructions for AI
+            </label>
+            <button
+              onClick={() => setShowCustomInstructions(false)}
+              className="p-1 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <textarea
+            value={customInstructions}
+            onChange={(e) => onCustomInstructionsChange?.(e.target.value)}
+            placeholder="e.g., Focus on leadership skills, use action verbs, emphasize quantifiable results..."
+            rows={3}
+            className="w-full px-3 py-2 border border-blue-300 dark:border-blue-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+          />
+          <p className="text-xs text-blue-700 dark:text-blue-300">
+            These instructions will guide the AI during optimization (e.g., tone, style, focus areas)
+          </p>
+        </div>
+      )}
     </div>
   )
 }

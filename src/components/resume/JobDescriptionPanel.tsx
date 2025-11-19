@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Info, FileText, ChevronDown } from 'lucide-react'
 
 interface JobDescriptionPanelProps {
@@ -9,6 +9,7 @@ interface JobDescriptionPanelProps {
   onJobDescriptionChange: (jd: string) => void
   onJobFieldChange: (field: string) => void
   disabled?: boolean
+  isAnalyzed?: boolean
 }
 
 const JOB_FIELDS = [
@@ -36,12 +37,98 @@ export default function JobDescriptionPanel({
   jobField = 'all',
   onJobDescriptionChange,
   onJobFieldChange,
-  disabled = false
+  disabled = false,
+  isAnalyzed = false
 }: JobDescriptionPanelProps) {
   const [showInfo, setShowInfo] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [lastAnalyzedJD, setLastAnalyzedJD] = useState('')
+  const [hasAutoCollapsed, setHasAutoCollapsed] = useState(false)
+  const [autoDetectedIndustry, setAutoDetectedIndustry] = useState<string | null>(null)
 
   const selectedField = JOB_FIELDS.find(f => f.value === jobField) || JOB_FIELDS[0]
+
+  // Auto-collapse after analysis (only once per JD)
+  useEffect(() => {
+    if (isAnalyzed && jobDescription.length > 0) {
+      // Check if this is a new JD being analyzed
+      if (lastAnalyzedJD !== jobDescription) {
+        setLastAnalyzedJD(jobDescription)
+        setHasAutoCollapsed(false)
+      }
+      // Only auto-collapse if we haven't done so for this JD yet
+      else if (!hasAutoCollapsed && !isCollapsed) {
+        setIsCollapsed(true)
+        setHasAutoCollapsed(true)
+      }
+    }
+  }, [isAnalyzed, jobDescription, lastAnalyzedJD, hasAutoCollapsed, isCollapsed])
+
+  // Auto-detect industry from job description
+  const detectIndustry = (jdText: string): string => {
+    const lowerJD = jdText.toLowerCase()
+
+    // Industry keyword patterns (prioritized)
+    if (lowerJD.includes('machine learning') || lowerJD.includes('deep learning') ||
+        lowerJD.includes('neural network') || lowerJD.includes('ai engineer') ||
+        lowerJD.includes('ml engineer') || lowerJD.includes('artificial intelligence')) {
+      return 'aiml'
+    }
+    if (lowerJD.includes('data scientist') || lowerJD.includes('data analyst') ||
+        lowerJD.includes('data engineer') || lowerJD.includes('analytics') ||
+        lowerJD.includes('tableau') || lowerJD.includes('power bi')) {
+      return 'data'
+    }
+    if (lowerJD.includes('devops') || lowerJD.includes('sre') ||
+        lowerJD.includes('site reliability') || lowerJD.includes('kubernetes') ||
+        lowerJD.includes('terraform') || lowerJD.includes('jenkins')) {
+      return 'devops'
+    }
+    if (lowerJD.includes('cloud architect') || lowerJD.includes('aws') ||
+        lowerJD.includes('azure') || lowerJD.includes('gcp') ||
+        lowerJD.includes('cloud engineer')) {
+      return 'cloud'
+    }
+    if (lowerJD.includes('react') || lowerJD.includes('vue') ||
+        lowerJD.includes('angular') || lowerJD.includes('frontend') ||
+        lowerJD.includes('front-end') || lowerJD.includes('ui developer')) {
+      return 'frontend'
+    }
+    if (lowerJD.includes('backend') || lowerJD.includes('back-end') ||
+        lowerJD.includes('api developer') || lowerJD.includes('microservices') ||
+        lowerJD.includes('node.js') || lowerJD.includes('django') || lowerJD.includes('spring')) {
+      return 'backend'
+    }
+    if (lowerJD.includes('full stack') || lowerJD.includes('fullstack') ||
+        lowerJD.includes('full-stack')) {
+      return 'fullstack'
+    }
+    if (lowerJD.includes('ios') || lowerJD.includes('android') ||
+        lowerJD.includes('react native') || lowerJD.includes('flutter') ||
+        lowerJD.includes('mobile developer')) {
+      return 'mobile'
+    }
+    if (lowerJD.includes('security engineer') || lowerJD.includes('cybersecurity') ||
+        lowerJD.includes('penetration test') || lowerJD.includes('infosec') ||
+        lowerJD.includes('security analyst')) {
+      return 'security'
+    }
+    if (lowerJD.includes('product manager') || lowerJD.includes('product owner') ||
+        lowerJD.includes('pm ') || lowerJD.includes('product lead')) {
+      return 'product'
+    }
+    if (lowerJD.includes('ux designer') || lowerJD.includes('ui designer') ||
+        lowerJD.includes('ux/ui') || lowerJD.includes('product designer')) {
+      return 'design'
+    }
+    if (lowerJD.includes('software engineer') || lowerJD.includes('sde') ||
+        lowerJD.includes('software developer')) {
+      return 'swe'
+    }
+
+    return 'all' // Default if no match
+  }
 
   return (
     <div className="space-y-4">
@@ -154,26 +241,80 @@ export default function JobDescriptionPanel({
 
       {/* Job Description Textarea */}
       <div>
-        <textarea
-          value={jobDescription}
-          onChange={(e) => onJobDescriptionChange(e.target.value)}
-          disabled={disabled}
-          placeholder="Paste the complete job description here..."
-          rows={4}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-        />
+        {isCollapsed ? (
+          /* Collapsed View - One Line Preview */
+          <div
+            onClick={() => setIsCollapsed(false)}
+            className="w-full px-3 py-2 border border-purple-300 dark:border-purple-700 rounded-lg bg-purple-50/50 dark:bg-purple-900/10 text-gray-800 dark:text-gray-200 text-sm cursor-pointer hover:bg-purple-100/50 dark:hover:bg-purple-900/20 transition-colors group flex items-center justify-between gap-2"
+          >
+            <span className="flex-1 truncate">
+              {jobDescription.length > 100
+                ? `${jobDescription.substring(0, 100)}...`
+                : jobDescription}
+            </span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">
+                Click to edit
+              </span>
+              <ChevronDown className="w-4 h-4 text-purple-600 dark:text-purple-400 rotate-180 group-hover:scale-110 transition-transform" />
+            </div>
+          </div>
+        ) : (
+          /* Expanded View - Full Textarea */
+          <textarea
+            value={jobDescription}
+            onChange={(e) => {
+              const newValue = e.target.value
+              onJobDescriptionChange(newValue)
+
+              // Auto-expand if collapsed (for iteration)
+              if (isCollapsed) {
+                setIsCollapsed(false)
+              }
+
+              // Auto-detect industry when user pastes/types significant content
+              if (newValue.length > 100 && jobField === 'all') {
+                const detectedIndustry = detectIndustry(newValue)
+                if (detectedIndustry !== 'all') {
+                  onJobFieldChange(detectedIndustry)
+                  setAutoDetectedIndustry(detectedIndustry)
+                  // Clear notification after 3 seconds
+                  setTimeout(() => setAutoDetectedIndustry(null), 3000)
+                }
+              }
+            }}
+            disabled={disabled}
+            placeholder="Paste the complete job description here..."
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          />
+        )}
 
         {/* Character Count */}
-        <div className="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
-          <span>
-            {jobDescription.length > 0 && `${jobDescription.length} characters`}
-          </span>
-          {jobField !== 'all' && (
-            <span className="text-purple-600 dark:text-purple-400">
-              Field: {selectedField.label}
+        {!isCollapsed && (
+          <div className="flex items-center justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
+            <span>
+              {jobDescription.length > 0 && `${jobDescription.length} characters`}
             </span>
-          )}
-        </div>
+            {jobField !== 'all' && (
+              <span className="text-purple-600 dark:text-purple-400">
+                Field: {selectedField.label}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Auto-Detection Notification */}
+        {autoDetectedIndustry && (
+          <div className="mt-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
+            <p className="text-xs text-green-700 dark:text-green-300 flex items-center gap-2">
+              <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              <span>
+                Auto-detected industry: <strong>{JOB_FIELDS.find(f => f.value === autoDetectedIndustry)?.label}</strong>
+              </span>
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

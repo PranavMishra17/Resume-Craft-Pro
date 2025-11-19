@@ -8,7 +8,7 @@
  * - Map keywords to relevant bullet points
  */
 
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Resume, ResumeLine, KeywordAnalysis, KeywordMapping } from '@/lib/parsers/types';
 import { getTokenTracker } from '@/lib/tracking/token-tracker';
 
@@ -18,51 +18,77 @@ const MODEL_NAME = 'gemini-2.0-flash-exp';
  * Keyword Analyzer class
  */
 export class KeywordAnalyzer {
-  private client: GoogleGenAI;
+  private genAI: GoogleGenerativeAI;
   private sessionId: string;
 
   constructor(apiKey: string, sessionId: string) {
-    this.client = new GoogleGenAI({ apiKey });
+    this.genAI = new GoogleGenerativeAI(apiKey);
     this.sessionId = sessionId;
   }
 
   /**
    * Extract keywords from job description
    */
-  async extractJDKeywords(jdContent: string): Promise<string[]> {
+  async extractJDKeywords(jdContent: string, jobField?: string): Promise<string[]> {
     console.info('[KEYWORD_ANALYZER] Extracting keywords from job description');
 
     const startTime = Date.now();
     const tracker = getTokenTracker();
 
-    const prompt = `You are a technical recruiter and keyword extraction expert.
-Extract 15-20 most important technical keywords from this job description.
+    const prompt = `You are a technical recruiter specializing in extracting ONLY technical skills and technologies that would appear on a resume.
 
-Focus on:
-- Programming languages (Python, JavaScript, Java, C++, etc.)
-- Frameworks and libraries (React, Django, TensorFlow, etc.)
-- Tools and platforms (Docker, Kubernetes, AWS, etc.)
-- Technical skills (Machine Learning, Computer Vision, API Development, etc.)
-- Methodologies (Agile, CI/CD, TDD, etc.)
+INCLUDE ONLY:
+✅ Programming languages (Python, JavaScript, Java, C++, Go, Rust, TypeScript, Swift, Kotlin, Ruby, PHP)
+✅ Frameworks and libraries (React, Vue, Angular, Django, Flask, Spring, TensorFlow, PyTorch, Node.js, Express, Next.js)
+✅ Databases and data stores (PostgreSQL, MongoDB, Redis, MySQL, Elasticsearch, DynamoDB, Cassandra, Oracle)
+✅ Cloud platforms and services (AWS, Azure, GCP, AWS Lambda, S3, EC2, CloudFormation, Azure Functions)
+✅ DevOps and infrastructure tools (Docker, Kubernetes, Jenkins, Terraform, Ansible, GitHub Actions, CircleCI, GitLab CI)
+✅ Technical methodologies and patterns (Agile, Scrum, CI/CD, TDD, Microservices, REST APIs, GraphQL, WebSockets)
+✅ Specific technical skills (Machine Learning, Computer Vision, NLP, Data Structures, Algorithms, System Design, API Development)
+✅ Development tools (Git, VSCode, Jira, Postman, Webpack, Babel, npm, Maven, Gradle)
+✅ Testing frameworks (Jest, Pytest, JUnit, Selenium, Cypress, Mocha, Chai)
+✅ Security tools and concepts (OAuth, JWT, SSL/TLS, Encryption, Penetration Testing, OWASP)
+✅ Data processing tools (Apache Spark, Hadoop, Kafka, Airflow, Pandas, NumPy)
 
-Return ONLY a comma-separated list of keywords. No explanations.
+EXCLUDE (DO NOT INCLUDE):
+❌ Job titles or roles (Senior Engineer, CTO, CPO, Technical Lead, Founder, Manager, Director, VP, Staff Engineer)
+❌ Locations or geography (San Francisco, Remote, Bay Area, US, New York, California, Seattle, Austin)
+❌ Citizenship or legal requirements (US Citizen, Security Clearance, Work Authorization, Visa Sponsorship, Eligible to work)
+❌ Company names or industries (Defense Technology, Healthcare Technology, Finance, Biotech, FinTech)
+❌ Soft skills or traits (Leadership, Communication, Team Player, Problem Solving, Collaboration, Self-motivated)
+❌ Company benefits (Equity, Health Insurance, 401k, Stock Options, Bonus, Competitive Salary)
+❌ General business or domain terms (National Security, Production Systems, Business Development, Strategy, Mission)
+❌ Education requirements (Bachelor's Degree, PhD, MS, Computer Science Degree, Master's)
+❌ Years of experience (5+ years, Senior level, Entry level, 3-5 years, 10+ years experience)
+❌ Company descriptions (Fast-growing, Startup, Fortune 500, Well-funded, Series A)
+❌ Generic terms without technical specificity (Production, Development, Engineering, Systems, Technology)
+❌ Work environment terms (Full-time, Part-time, Contract, Hybrid, On-site, Flexible hours)
+❌ Generic project types (AI Agents, Production Systems, Full-Stack Development) - only extract specific technologies
 
-Example output: Python, React, AWS, Machine Learning, Docker, PostgreSQL, REST APIs
+${jobField && jobField !== 'all' ? `CONTEXT: This is a ${jobField} position. Prioritize technical skills relevant to this field.\n` : ''}
+
+Extract 15-20 technical keywords that a candidate would list on their resume as specific skills or technologies.
+
+Return ONLY a comma-separated list of technical keywords. No explanations, no extra text, no formatting.
+
+Example output: Python, React, AWS, Machine Learning, Docker, PostgreSQL, REST APIs, Kubernetes, TensorFlow, CI/CD
 
 Job Description:
 ${jdContent}
 
-Keywords:`;
+Technical Keywords:`;
 
     try {
       const estimatedPromptTokens = tracker.estimateTokens(prompt);
 
-      const response = await this.client.models.generateContent({
-        model: MODEL_NAME,
-        contents: prompt
-      });
+      // Get the generative model
+      const model = this.genAI.getGenerativeModel({ model: MODEL_NAME });
 
-      const text = response.text?.trim() || '';
+      // Generate content
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const text = response.text().trim();
+
       const estimatedCompletionTokens = tracker.estimateTokens(text);
       const durationMs = Date.now() - startTime;
 
@@ -139,12 +165,14 @@ Keywords:`;
     try {
       const estimatedPromptTokens = tracker.estimateTokens(prompt);
 
-      const response = await this.client.models.generateContent({
-        model: MODEL_NAME,
-        contents: prompt
-      });
+      // Get the generative model
+      const model = this.genAI.getGenerativeModel({ model: MODEL_NAME });
 
-      const text = response.text?.trim() || '';
+      // Generate content
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const text = response.text().trim();
+
       const estimatedCompletionTokens = tracker.estimateTokens(text);
       const durationMs = Date.now() - startTime;
 
@@ -303,12 +331,14 @@ JSON:`;
     try {
       const estimatedPromptTokens = tracker.estimateTokens(prompt);
 
-      const response = await this.client.models.generateContent({
-        model: MODEL_NAME,
-        contents: prompt
-      });
+      // Get the generative model
+      const model = this.genAI.getGenerativeModel({ model: MODEL_NAME });
 
-      const text = response.text?.trim() || '';
+      // Generate content
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const text = response.text().trim();
+
       const estimatedCompletionTokens = tracker.estimateTokens(text);
       const durationMs = Date.now() - startTime;
 
@@ -427,12 +457,14 @@ If none found, return "None".`;
     try {
       const estimatedPromptTokens = tracker.estimateTokens(prompt);
 
-      const response = await this.client.models.generateContent({
-        model: MODEL_NAME,
-        contents: prompt
-      });
+      // Get the generative model
+      const model = this.genAI.getGenerativeModel({ model: MODEL_NAME });
 
-      const text = response.text?.trim() || '';
+      // Generate content
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const text = response.text().trim();
+
       const estimatedCompletionTokens = tracker.estimateTokens(text);
       const durationMs = Date.now() - startTime;
 

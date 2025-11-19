@@ -3,7 +3,7 @@
  * Uses Gemini Flash to intelligently detect placeholders in document lines
  */
 
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export interface LLMPlaceholderResult {
   lineNumber: number;
@@ -23,7 +23,7 @@ export async function detectPlaceholdersWithLLM(
   apiKey: string
 ): Promise<LLMPlaceholderResult[]> {
   try {
-    const genAI = new GoogleGenAI({ apiKey });
+    const genAI = new GoogleGenerativeAI(apiKey);
 
     // Build prompt with all lines
     const linesText = lines
@@ -55,12 +55,13 @@ Respond with ONLY a JSON array, no other text. Format:
 
 JSON response:`;
 
-    const response = await genAI.models.generateContent({
-      model: 'gemini-2.0-flash-exp',
-      contents: prompt
-    });
+    // Get the generative model
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
-    const responseText = response.text?.trim() || '[]';
+    // Generate content
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const responseText = response.text().trim();
 
     // Extract JSON from response (handle cases where LLM adds explanation)
     const jsonMatch = responseText.match(/\[[\s\S]*\]/);

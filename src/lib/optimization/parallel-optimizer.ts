@@ -9,7 +9,7 @@
  * - Track all tokens used
  */
 
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import pLimit from 'p-limit';
 import {
   Resume,
@@ -27,7 +27,7 @@ const MODEL_NAME = 'gemini-2.0-flash-exp';
  * Parallel Optimizer class
  */
 export class ParallelOptimizer {
-  private client: GoogleGenAI;
+  private genAI: GoogleGenerativeAI;
   private sessionId: string;
   private config: OptimizationConfig;
 
@@ -36,7 +36,7 @@ export class ParallelOptimizer {
     sessionId: string,
     config: OptimizationConfig
   ) {
-    this.client = new GoogleGenAI({ apiKey });
+    this.genAI = new GoogleGenerativeAI(apiKey);
     this.sessionId = sessionId;
     this.config = config;
   }
@@ -143,12 +143,14 @@ OPTIMIZED BULLET:`;
     try {
       const estimatedPromptTokens = tracker.estimateTokens(prompt);
 
-      const response = await this.client.models.generateContent({
-        model: MODEL_NAME,
-        contents: prompt
-      });
+      // Get the generative model
+      const model = this.genAI.getGenerativeModel({ model: MODEL_NAME });
 
-      let optimizedText = response.text?.trim() || '';
+      // Generate content
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      let optimizedText = response.text().trim();
+
       const estimatedCompletionTokens = tracker.estimateTokens(optimizedText);
       const durationMs = Date.now() - startTime;
 
